@@ -1,0 +1,15 @@
+[package]
+name = "quisquis"
+version = "0.1.0"
+authors = ["Arnabjana1999 <ajana47@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+rand = "0.6.5"
+digest = "0.8.0"
+sha2 = "0.8.0"
+grin_secp256k1zkp = "0.7.4"
+structopt = "0.2"
+
+[profile.release]
+debug = false
