@@ -1,4 +1,4 @@
-use digest::Digest;
+//use digest::Digest;
 //use sha2::Sha256;
 use rand::{thread_rng, Rng};
 //use rand::seq::SliceRandom;
@@ -68,8 +68,8 @@ impl SimpleProof {
             q_pubkey_list : vec![qzeropk; own_list_size],
             q_com_list : vec![qzeropk; own_list_size],
             own_list : vec![zeropk; own_list_size],
-            rep_pok : empty_pok,
-            ind_pok : vec![empty_pok; own_list_size],
+            rep_pok : empty_pok.clone(),
+            ind_pok : vec![empty_pok.clone(); own_list_size],          
             value_basepoint : zeropk,
             secret_basepoint : zeropk,
         }
@@ -81,11 +81,11 @@ impl SimpleProof {
         let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
 
         let mut sum_images = self.own_list[0];
-        for image in self.own_list[1..] {
-            sum_images = PublicKey::from_combination(&secp_inst, vec![&sum_images, &image]).unwrap(); //sum_images += image
+        for i in 1..self.own_list.len() {
+            sum_images = PublicKey::from_combination(&secp_inst, vec![&sum_images, &self.own_list[i]]).unwrap(); //sum_images += image
         }
 
-        let mut result = true;
+        let mut result : bool;
 
         for i in 0..self.own_list.len() {
             result = RepresentationPoK::verify_individual_pok(
@@ -144,12 +144,12 @@ impl SimpleQuisquisExchange {
             simproof.q_com_list[i].x = simproof.q_pubkey_list[i].x.clone();
             simproof.q_com_list[i].x.mul_assign(&secp_inst, &r).unwrap();
             let mut v_g = simproof.value_basepoint.clone();
-            v_g.mul_assign(&secp_inst, &amounts[i]).unwrap();
+            v_g.mul_assign(&secp_inst, &RepresentationPoK::amount_to_key(&secp_inst, amounts[i])).unwrap();
             let mut r_hi = simproof.q_pubkey_list[i].y.clone();
             r_hi.mul_assign(&secp_inst, &r).unwrap();
             simproof.q_com_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r_hi]).unwrap();
 
-            simproof.own_list[i] = Secp256k1::commit(&secp_inst, amounts[i], okeys[i]).unwrap()
+            simproof.own_list[i] = Secp256k1::commit(&secp_inst, amounts[i], okeys[i].clone()).unwrap()        //unsure
                                 .to_pubkey(&secp_inst).unwrap();                                 //key-images ... doubt
         }
 
@@ -164,7 +164,7 @@ impl SimpleQuisquisExchange {
     pub fn generate_proof(&mut self) -> SimpleProof {
         let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
         let mut sum_images = self.simple_proof.own_list[0];
-        let mut total_secret_keys = self.own_keys[0];
+        let mut total_secret_keys = self.own_keys[0].clone();                          //unsure
         let mut sum_amount = self.own_amounts[0];
 
         for i in 1..self.own_list_size {
@@ -172,11 +172,11 @@ impl SimpleQuisquisExchange {
             total_secret_keys.add_assign(&secp_inst, &self.own_keys[i]).unwrap();
             sum_amount += &self.own_amounts[i];
 
-            self.simproof.ind_pok[i] = RepresentationPoK::create_individual_pok(
+            self.simple_proof.ind_pok[i] = RepresentationPoK::create_individual_pok(
                                     self.simple_proof.q_pubkey_list[i].y,
                                     self.simple_proof.q_com_list[i].y,
                                     self.simple_proof.own_list[i],
-                                    self.own_keys[i],
+                                    self.own_keys[i].clone(),                            //unsure
                                     self.own_amounts[i],
                                     self.simple_proof.q_pubkey_list[i].x,
                                     self.simple_proof.q_com_list[i].x,

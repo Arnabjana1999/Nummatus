@@ -13,7 +13,7 @@ pub const MINUS_ONE_KEY: SecretKey = SecretKey([
     0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x40
 ]);
 
-#[derive (Copy, Clone)]
+#[derive (Clone)]
 pub struct RepresentationPoK {
 	c : SecretKey,
 	s1 : SecretKey,
@@ -212,7 +212,7 @@ impl RepresentationPoK {
 
 	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
 
-	    let mut c = rpok.c;
+	    let c = rpok.c.clone();
 
 	    c == hash_scalar    // comparing c from QuisquisPoK and evaluation of the scalar-hash
 	  }
