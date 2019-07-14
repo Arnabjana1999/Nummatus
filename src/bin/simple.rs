@@ -36,7 +36,9 @@ fn main() {
       total_gen_proof_duration += gen_proof_end.duration_since(gen_proof_start);
 
       ver_proof_start = Instant::now();
-      assert!(simple_proof.verify());
+      //let ans = simple_proof.verify();                 //--debug
+      //println!("{}",ans);
+      assert!(simple_proof.verify());      //--real
       ver_proof_end = Instant::now();
       total_ver_proof_duration += ver_proof_end.duration_since(ver_proof_start);
     }

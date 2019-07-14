@@ -123,10 +123,10 @@ impl RepresentationPoK {
 
     	// Calculation of H(S || r2*g + r1*h)
 	    let mut hasher = Sha256::new();
-	    hasher.input(value_gen.serialize_vec(&secp_inst, true));    // Hash g
+	    hasher.input(value_gen.serialize_vec(&secp_inst, true));     // Hash g
 	    hasher.input(secret_gen.serialize_vec(&secp_inst, true));    // Hash h
-	    hasher.input(keyimage.serialize_vec(&secp_inst, true));       // Hash \sum I_i
-	    hasher.input(r2g_r1h.serialize_vec(&secp_inst, true));      // Hash r2*g + r1*h
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));      // Hash \sum I_i
+	    hasher.input(r2g_r1h.serialize_vec(&secp_inst, true));       // Hash r2*g + r1*h
 
 	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
 
@@ -134,9 +134,9 @@ impl RepresentationPoK {
 	    rep_pok.c = hash_scalar;                                       // c = H(S...V_3)
 
 	    // Calculation of s_1
-	    rep_pok.s1 = secret_key;                                  // s_1 = alpha
+	    rep_pok.s1 = secret_key;                                       // s_1 = alpha
 	    rep_pok.s1.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();    // s_1 = -alpha
-	    rep_pok.s1.mul_assign(&secp_inst, &rep_pok.c).unwrap();         // s_1 = -c*alpha
+	    rep_pok.s1.mul_assign(&secp_inst, &rep_pok.c).unwrap();        // s_1 = -c*alpha
 	    rep_pok.s1.add_assign(&secp_inst, &r1).unwrap();               // s_1 = r_1 - c*alpha
 
 	    // Calculation of s_2
@@ -171,14 +171,23 @@ impl RepresentationPoK {
 	  ) -> bool {
 
 	    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+	    //println!("1");
+	    //rpok.c = MINUS_ONE_KEY;
+	    //rpok.s1 = MINUS_ONE_KEY;
+	    //rpok.s2 = MINUS_ONE_KEY;
 
 	    // Calculation of V_1 = s1*g1 + c*x    where x = h_i
 	    let mut s1_g1 = pub_x_gen.clone();
+	    //println!("2");
 	    s1_g1.mul_assign(&secp_inst, &rpok.s1).unwrap();
+	    //println!("3");
 	    let mut c_x = pub_y.clone();
+	    //println!("4");
 	    c_x.mul_assign(&secp_inst, &rpok.c).unwrap();
+	    //println!("5");
 	    let v1 = PublicKey::from_combination(&secp_inst, vec![&s1_g1, &c_x]).unwrap();
 
+	    //println!("2");
 	    // Calculation of V_2 = s1*g2 + s2*g + c*y    where y = d_i
 	    let mut s1_g2 = com_x_gen.clone();
 	    s1_g2.mul_assign(&secp_inst, &rpok.s1).unwrap();
@@ -188,12 +197,15 @@ impl RepresentationPoK {
 	    c_y.mul_assign(&secp_inst, &rpok.c).unwrap();
 	    let v2 = PublicKey::from_combination(&secp_inst, vec![&s1_g2, &s2_g, &c_y]).unwrap();
 
+	    //println!("3");
 	    // Calculation of V_3 = s2*g + s1*h + c*z   where z = I_i
 	    let mut s1_h = secret_gen.clone();
 	    s1_h.mul_assign(&secp_inst, &rpok.s1).unwrap();
 	    let mut c_z = keyimage.clone();
 	    c_z.mul_assign(&secp_inst, &rpok.c).unwrap();
 	    let v3 = PublicKey::from_combination(&secp_inst, vec![&s2_g, &s1_h, &c_z]).unwrap();
+
+	    //println!("4");
 
 	    // Calculation of H(S || V_1 || V_2 || V_3)
 	    let mut hasher = Sha256::new();
@@ -209,6 +221,8 @@ impl RepresentationPoK {
 	    hasher.input(v1.serialize_vec(&secp_inst, true));           // Hash V_1
 	    hasher.input(v2.serialize_vec(&secp_inst, true));           // Hash V_2
 	    hasher.input(v3.serialize_vec(&secp_inst, true));           // Hash V_3
+
+	    //println!("5");
 
 	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
 

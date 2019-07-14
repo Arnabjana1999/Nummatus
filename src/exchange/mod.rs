@@ -10,6 +10,13 @@ use super::nizk::{RepresentationPoK};
 
 const MAX_AMOUNT_PER_OUTPUT: u64 = 1000;
 
+pub const MINUS_ONE_KEY: SecretKey = SecretKey([
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+    0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
+    0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x40
+]);
+
 pub const GENERATOR_G : [u8;65] = [                          //pub : public
     0x04,
     0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac,
@@ -129,29 +136,44 @@ impl SimpleQuisquisExchange {
 
         let mut rng = thread_rng();
 
+        //println!("1");
         simproof.value_basepoint = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();
         simproof.secret_basepoint = PublicKey::from_slice(&secp_inst, &GENERATOR_H).unwrap();
 
         for i in 0..olist_size {
             okeys[i] = SecretKey::new(&secp_inst, &mut rng);
             amounts[i] = rng.gen_range(1, MAX_AMOUNT_PER_OUTPUT);
-
-            simproof.q_pubkey_list[i].x = PublicKey::new();
+            let r1 = SecretKey::new(&secp_inst, &mut rng);
+            let r2 = SecretKey::new(&secp_inst, &mut rng);
+            //println!("2");
+            simproof.q_pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();
+            simproof.q_pubkey_list[i].x.mul_assign(&secp_inst, &r1).unwrap();
+            //println!("3");
             simproof.q_pubkey_list[i].y = simproof.q_pubkey_list[i].x.clone();
+            //println!("4");
             simproof.q_pubkey_list[i].y.mul_assign(&secp_inst, &okeys[i]).unwrap();
 
-            let r = SecretKey::new(&secp_inst, &mut rng);
+            //println!("5");
+            
             simproof.q_com_list[i].x = simproof.q_pubkey_list[i].x.clone();
-            simproof.q_com_list[i].x.mul_assign(&secp_inst, &r).unwrap();
+
+            //println!("6");
+            simproof.q_com_list[i].x.mul_assign(&secp_inst, &r2).unwrap();
+            //println!("7");
             let mut v_g = simproof.value_basepoint.clone();
             v_g.mul_assign(&secp_inst, &RepresentationPoK::amount_to_key(&secp_inst, amounts[i])).unwrap();
-            let mut r_hi = simproof.q_pubkey_list[i].y.clone();
-            r_hi.mul_assign(&secp_inst, &r).unwrap();
-            simproof.q_com_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r_hi]).unwrap();
+            let mut r2_hi = simproof.q_pubkey_list[i].y.clone();
+            r2_hi.mul_assign(&secp_inst, &r2).unwrap();
+            simproof.q_com_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_hi]).unwrap();
 
-            simproof.own_list[i] = Secp256k1::commit(&secp_inst, amounts[i], okeys[i].clone()).unwrap()        //unsure
-                                .to_pubkey(&secp_inst).unwrap();                                 //key-images ... doubt
+            let mut sk_h = simproof.secret_basepoint.clone();
+            sk_h.mul_assign(&secp_inst, &okeys[i].clone()).unwrap();
+            simproof.own_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &sk_h]).unwrap();
+
+            //simproof.own_list[i] = Secp256k1::commit(&secp_inst, amounts[i], okeys[i].clone()).unwrap()        //unsure
+            //                    .to_pubkey(&secp_inst).unwrap();                                 //key-images ... doubt
         }
+        //println!("8");
 
         SimpleQuisquisExchange {
             own_list_size : olist_size,
@@ -171,18 +193,20 @@ impl SimpleQuisquisExchange {
             sum_images = PublicKey::from_combination(&secp_inst, vec![&sum_images, &self.simple_proof.own_list[i]]).unwrap(); // sum_outputs += output
             total_secret_keys.add_assign(&secp_inst, &self.own_keys[i]).unwrap();
             sum_amount += &self.own_amounts[i];
+        }
 
+        for i in 0..self.own_list_size {
             self.simple_proof.ind_pok[i] = RepresentationPoK::create_individual_pok(
-                                    self.simple_proof.q_pubkey_list[i].y,
-                                    self.simple_proof.q_com_list[i].y,
-                                    self.simple_proof.own_list[i],
-                                    self.own_keys[i].clone(),                            //unsure
-                                    self.own_amounts[i],
-                                    self.simple_proof.q_pubkey_list[i].x,
-                                    self.simple_proof.q_com_list[i].x,
-                                    self.simple_proof.value_basepoint,
-                                    self.simple_proof.secret_basepoint,
-                                    );
+                                        self.simple_proof.q_pubkey_list[i].y,
+                                        self.simple_proof.q_com_list[i].y,
+                                        self.simple_proof.own_list[i],
+                                        self.own_keys[i].clone(),                            //unsure
+                                        self.own_amounts[i],
+                                        self.simple_proof.q_pubkey_list[i].x,
+                                        self.simple_proof.q_com_list[i].x,
+                                        self.simple_proof.value_basepoint,
+                                        self.simple_proof.secret_basepoint,
+                                        );
         }
 
         self.simple_proof.rep_pok = RepresentationPoK::create_summation_pok(
