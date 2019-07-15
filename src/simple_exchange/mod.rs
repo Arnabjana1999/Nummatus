@@ -10,6 +10,8 @@ use crate::misc::QPublicKey;
 use crate::misc::GENERATOR_G;
 use crate::misc::GENERATOR_H;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
+use crate::misc::amount_to_key;
+
 use crate::simple_nizk::RepresentationPoK;
 
 pub struct SimpleProof {
@@ -117,7 +119,7 @@ impl SimpleQuisquisExchange {
             simproof.q_com_list[i].x.mul_assign(&secp_inst, &r2).unwrap();
             //println!("7");
             let mut v_g = simproof.value_basepoint.clone();
-            v_g.mul_assign(&secp_inst, &RepresentationPoK::amount_to_key(&secp_inst, amounts[i])).unwrap();
+            v_g.mul_assign(&secp_inst, &amount_to_key(&secp_inst, amounts[i])).unwrap();
             let mut r2_hi = simproof.q_pubkey_list[i].y.clone();
             r2_hi.mul_assign(&secp_inst, &r2).unwrap();
             simproof.q_com_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_hi]).unwrap();

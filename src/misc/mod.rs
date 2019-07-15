@@ -1,4 +1,5 @@
 use secp256k1zkp as secp;
+use secp::Secp256k1;
 use secp::key::{SecretKey, PublicKey};
 
 pub const MAX_AMOUNT_PER_OUTPUT: u64 = 1000;
@@ -48,4 +49,15 @@ impl QPublicKey {
             y : PublicKey::new(),
         }
     }
+}
+
+pub fn amount_to_key (secp_inst: &Secp256k1, amount: u64) -> SecretKey {
+    assert!(amount != 0);
+    // Converting u64 amount to a scalar i.e. SecretKey
+    let amount_as_bytes = amount.to_be_bytes();
+    let mut amount_scalar_vec = vec![0u8; 24];
+    amount_scalar_vec.extend_from_slice(&amount_as_bytes);
+    let amount_scalar = SecretKey::from_slice(&secp_inst, amount_scalar_vec.as_slice()).unwrap();
+
+    amount_scalar
 }

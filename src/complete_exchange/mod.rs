@@ -10,12 +10,14 @@ use crate::misc::QPublicKey;
 use crate::misc::GENERATOR_G;
 use crate::misc::GENERATOR_H;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
+use crate::misc::amount_to_key;
+
 use crate::complete_nizk::QuisquisPoK;
 
 pub struct QuisquisProof {
   pub pubkey_list: Vec<QPublicKey>,          //Public_keys   
   pub commitment_list: Vec<QPublicKey>,      //Commitments
-  pub keyimage_list: Vec<PublicKey>,         //I
+  pub keyimage_list: Vec<PublicKey>,         //key-images
   pub pok_list: Vec<QuisquisPoK>,            //sigma 5-tuple
   value_basepoint: PublicKey,                //g
   secret_basepoint: PublicKey,               //h
@@ -63,10 +65,10 @@ impl QuisquisProof {
 pub struct QuisquisExchange {
   anon_list_size: usize,
   quisquis_proof: QuisquisProof,
-  own_keys: Vec<SecretKey>,     //blinding factor own
-  own_amounts: Vec<u64>,
+  own_keys: Vec<SecretKey>,     //alpha
+  own_amounts: Vec<u64>,        //beta
   decoy_keys_seed: SecretKey,
-  decoy_keys: Vec<SecretKey>,   //blinding factor others
+  decoy_keys: Vec<SecretKey>,   //gamma
 }
 
 impl QuisquisExchange {
@@ -115,7 +117,7 @@ impl QuisquisExchange {
         qproof.commitment_list[i].x = qproof.pubkey_list[i].x.clone();
         qproof.commitment_list[i].x.mul_assign(&secp_inst, &r2).unwrap();
         let mut v_g = qproof.value_basepoint.clone();
-        v_g.mul_assign(&secp_inst, &QuisquisPoK::amount_to_key(&secp_inst, amounts[i])).unwrap();
+        v_g.mul_assign(&secp_inst, &amount_to_key(&secp_inst, amounts[i])).unwrap();
         let mut r2_hi = qproof.pubkey_list[i].y.clone();
         r2_hi.mul_assign(&secp_inst, &r2).unwrap();
         qproof.commitment_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_hi]).unwrap();

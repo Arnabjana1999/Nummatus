@@ -6,6 +6,7 @@ use secp::Secp256k1;
 use secp::key::{SecretKey, PublicKey, ZERO_KEY};
 
 use crate::misc::MINUS_ONE_KEY;
+use crate::misc::amount_to_key;
 
 #[derive (Clone)]
 pub struct RepresentationPoK {
@@ -85,7 +86,7 @@ impl RepresentationPoK {
 	    rep_pok.s1.add_assign(&secp_inst, &r1).unwrap();               // s_1 = r_1 - c*alpha
 
 	    // Calculation of s_2
-	    rep_pok.s2 = RepresentationPoK::amount_to_key(&secp_inst, amount);    // s_2 = beta
+	    rep_pok.s2 = amount_to_key(&secp_inst, amount);    // s_2 = beta
 	    rep_pok.s2.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();     // s_2 = -beta
 	    rep_pok.s2.mul_assign(&secp_inst, &rep_pok.c).unwrap();         // s_2 = -c*beta
 	    rep_pok.s2.add_assign(&secp_inst, &r2).unwrap();                // s_2 = r_2 - c*beta
@@ -134,24 +135,13 @@ impl RepresentationPoK {
 	    rep_pok.s1.add_assign(&secp_inst, &r1).unwrap();               // s_1 = r_1 - c*alpha
 
 	    // Calculation of s_2
-	    rep_pok.s2 = RepresentationPoK::amount_to_key(&secp_inst, amount);    // s_2 = beta
+	    rep_pok.s2 = amount_to_key(&secp_inst, amount);    // s_2 = beta
 	    rep_pok.s2.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();    // s_2 = -beta
 	    rep_pok.s2.mul_assign(&secp_inst, &rep_pok.c).unwrap();         // s_2 = -c*beta
 	    rep_pok.s2.add_assign(&secp_inst, &r2).unwrap();               // s_2 = r_2 - c*beta
 
 	    rep_pok
 	}
-
-	pub fn amount_to_key (secp_inst: &Secp256k1, amount: u64) -> SecretKey {
-	    assert!(amount != 0);
-	    // Converting u64 amount to a scalar i.e. SecretKey
-	    let amount_as_bytes = amount.to_be_bytes();
-	    let mut amount_scalar_vec = vec![0u8; 24];
-	    amount_scalar_vec.extend_from_slice(&amount_as_bytes);
-	    let amount_scalar = SecretKey::from_slice(&secp_inst, amount_scalar_vec.as_slice()).unwrap();
-
-	    amount_scalar
-	  }
 
 	 pub fn verify_individual_pok (
 	 	pub_y: &PublicKey,       //x
