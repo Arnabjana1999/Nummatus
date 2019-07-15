@@ -3,11 +3,13 @@ extern crate quisquis;
 use structopt::StructOpt;
 
 use std::time::{Instant, Duration};
-use quisquis::simple_exchange::SimpleQuisquisExchange;
+use quisquis::complete_exchange::QuisquisExchange;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "simple", about = "Simple reserve proof generation simulator.")]
+#[structopt(name = "quisquis", about = "Quisquis_PoA proof generation simulator.")]
 struct Opt {
+  //#[structopt(short = "a", long = "anonsize")]
+  anon_list_size: usize,
   //#[structopt(short = "o", long = "ownsize")]
   own_list_size: usize,
   #[structopt(short = "n", long = "numiter", default_value = "1")]
@@ -18,8 +20,8 @@ fn main() {
     let opt = Opt::from_args();
 
     let num_iter = opt.num_iter;
-    let mut quisquis_exch = SimpleQuisquisExchange::new(opt.own_list_size);
-    let mut simple_proof;
+    let mut q_exch = QuisquisExchange::new(opt.anon_list_size, opt.own_list_size);
+    let mut quisquis_proof;
     let mut gen_proof_start;
     let mut gen_proof_end;
     let mut ver_proof_start;
@@ -31,14 +33,12 @@ fn main() {
 
     for _i in 0..num_iter {
       gen_proof_start = Instant::now();
-      simple_proof = quisquis_exch.generate_proof();
+      quisquis_proof = q_exch.generate_proof();
       gen_proof_end = Instant::now();
       total_gen_proof_duration += gen_proof_end.duration_since(gen_proof_start);
 
       ver_proof_start = Instant::now();
-      //let ans = simple_proof.verify();                 //--debug
-      //println!("{}",ans);
-      assert!(simple_proof.verify());      //--real
+      assert!(quisquis_proof.verify());
       ver_proof_end = Instant::now();
       total_ver_proof_duration += ver_proof_end.duration_since(ver_proof_start);
     }
@@ -52,4 +52,3 @@ fn main() {
     println!("Average proof verification time = {:?}",
       total_ver_proof_duration.checked_div(num_iter).unwrap());
 }
-
