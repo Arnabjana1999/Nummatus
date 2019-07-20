@@ -1,0 +1,459 @@
+use digest::Digest;
+use sha2::Sha256;
+use rand::thread_rng;
+use secp256k1zkp as secp;
+use secp::Secp256k1;
+use secp::key::{SecretKey, PublicKey, ZERO_KEY};
+
+use crate::misc::QPublicKey;
+use crate::misc::MINUS_ONE_KEY;
+use crate::misc::amount_to_key;
+use crate::misc::single_base_product;
+use crate::misc::double_base_product;
+use crate::misc::triple_base_product;
+use crate::misc::ratio;
+use crate::misc::hash_special_tx;
+use crate::misc::a_minus_bx;
+
+#[derive (Clone)]
+pub struct SpecialVerifyPoK {
+	c1 : SecretKey,
+	c2 : SecretKey,
+	s1 : SecretKey,
+	s2 : SecretKey,
+	s3 : SecretKey,
+	s4 : SecretKey,
+}
+
+impl SpecialVerifyPoK {
+
+	pub fn new() -> SpecialVerifyPoK {
+		SpecialVerifyPoK {
+			c1 : ZERO_KEY,
+			c2 : ZERO_KEY,
+			s1 : ZERO_KEY,
+			s2 : ZERO_KEY,
+			s3 : ZERO_KEY,
+			s4 : ZERO_KEY,
+		}
+	}
+
+	pub fn create_pok_from_decoy (
+		pubkey_input : QPublicKey,
+		commitment_input : QPublicKey,
+		pubkey_output : QPublicKey,
+		commitment_output : QPublicKey,
+		rand1 : SecretKey,
+		rand2 : SecretKey,
+		f_gen : PublicKey,
+		h_gen : PublicKey,
+		) -> SpecialVerifyPoK {
+
+		let mut rng = thread_rng();
+	    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
+	    let mut svpok = SpecialVerifyPoK::new();
+	    let r3 = SecretKey::new(&secp_inst, &mut rng);
+	    let r4 = SecretKey::new(&secp_inst, &mut rng);
+	    svpok.c1 = SecretKey::new(&secp_inst, &mut rng);
+	    svpok.s1 = SecretKey::new(&secp_inst, &mut rng);
+	    svpok.s2 = SecretKey::new(&secp_inst, &mut rng);
+
+	    //v1 = s1*g1 + c1*x     where x = h1
+	    let v1 = double_base_product(&secp_inst, pubkey_input.x.clone(), pubkey_input.y.clone(), svpok.s1.clone(), svpok.c1.clone());
+
+	    //v2 = s1*y1 + c1*y2        where y1 = g2-g1 and y2 = h2-h1
+	    let y1 = ratio(&secp_inst, pubkey_output.x.clone(), pubkey_input.x.clone());
+	    let y2 = ratio(&secp_inst, pubkey_output.y.clone(), pubkey_input.y.clone());
+	    let v2 = double_base_product(&secp_inst, y1.clone(), y2.clone(), svpok.s1.clone(), svpok.c1.clone());
+
+	    //v3 = s1*z1 + c1*z2        where z1 = c2-c1 and z2 = d2-d1
+	    let z1 = ratio(&secp_inst, commitment_output.x.clone(), commitment_input.x.clone());
+	    let z2 = ratio(&secp_inst, commitment_output.y.clone(), commitment_input.y.clone());
+	    let v3 = double_base_product(&secp_inst, z1.clone(), z2.clone(), svpok.s1.clone(), svpok.c1.clone());
+
+	    //v4 = s2*f + c1*a     where a = g2
+	    let v4 = double_base_product(&secp_inst, f_gen, pubkey_output.x.clone(), svpok.s2.clone(), svpok.c1.clone());
+	    //v5 = s2*h + c1*b     where b = c2
+	    let v5 = double_base_product(&secp_inst, h_gen, commitment_output.x.clone(), svpok.s2.clone(), svpok.c1.clone());
+
+	    //v6 = r3*g1
+	    let v6 = single_base_product(&secp_inst, pubkey_input.x.clone(), r3.clone());
+	    //v7 = r3*h1
+	    let v7 = single_base_product(&secp_inst, pubkey_input.y.clone(), r3.clone());
+	    //v8 = r4*g1
+	    let v8 = single_base_product(&secp_inst, pubkey_input.x.clone(), r4.clone());
+	    //v9 = r4*h1
+	    let v9 = single_base_product(&secp_inst, pubkey_input.y.clone(), r4.clone());
+
+	    let hash_scalar = hash_special_tx(&secp_inst,
+	    								pubkey_input.x.clone(),
+	    								y1.clone(),
+	    								z1.clone(),
+	    								f_gen,
+	    								h_gen,
+	    								pubkey_input.y.clone(),
+	    								y2.clone(),
+	    								z2.clone(),
+	    								pubkey_output.x.clone(),
+	    								pubkey_output.y.clone(),
+	    								commitment_output.x.clone(),
+	    								v1.clone(),
+	    								v2.clone(),
+	    								v3.clone(),
+	    								v4.clone(),
+	    								v5.clone(),
+	    								v6.clone(),
+	    								v7.clone(),
+	    								v8.clone(),
+	    								v9.clone()
+	    								);
+
+	    // Calculation of -c_1
+	    let mut minus_c1 = svpok.c1.clone();
+	    minus_c1.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
+
+	    // Calculation of c_2
+	    svpok.c2 = hash_scalar;                                      // c_2 = H(S...r_3*G')
+	    svpok.c2.add_assign(&secp_inst, &minus_c1).unwrap();         // c_2 = H(S...r_3*G') - c_1
+
+	    svpok.s3 = a_minus_bx(&secp_inst, r3.clone(), svpok.c2.clone(), rand1);
+	    svpok.s4 = a_minus_bx(&secp_inst, r4.clone(), svpok.c2.clone(), rand2);
+
+	    svpok
+	}
+
+	pub fn create_pok_from_representation (
+		pubkey_input : QPublicKey,
+		commitment_input : QPublicKey,
+		pubkey_output : QPublicKey,
+		commitment_output : QPublicKey,
+		secret_key : SecretKey,
+		rand : SecretKey,
+		f_gen : PublicKey,
+		h_gen : PublicKey,
+		) -> SpecialVerifyPoK {
+
+		let mut rng = thread_rng();
+	    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
+	    let mut svpok = SpecialVerifyPoK::new();
+	    let r1 = SecretKey::new(&secp_inst, &mut rng);
+	    let r2 = SecretKey::new(&secp_inst, &mut rng);
+	    svpok.c2 = SecretKey::new(&secp_inst, &mut rng);
+	    svpok.s3 = SecretKey::new(&secp_inst, &mut rng);
+	    svpok.s4 = SecretKey::new(&secp_inst, &mut rng);
+
+	    //v1 = r1*g1 
+	    let v1 = single_base_product(&secp_inst, pubkey_input.x.clone(), r1.clone());
+
+	    //v2 = r1*y1    where y1 = g2-g1
+	    let y1 = ratio(&secp_inst, pubkey_output.x.clone(), pubkey_input.x.clone());
+	    let y2 = ratio(&secp_inst, pubkey_output.y.clone(), pubkey_input.y.clone());
+	    let v2 = single_base_product(&secp_inst, y1.clone(), r1.clone());
+
+	    //v3 = r1*z1    where z1 = c2-c1
+	    let z1 = ratio(&secp_inst, commitment_output.x.clone(), commitment_input.x.clone());
+	    let z2 = ratio(&secp_inst, commitment_output.y.clone(), commitment_input.y.clone());
+	    let v3 = single_base_product(&secp_inst, z1.clone(), r1.clone());
+
+	    //v4 = r2*f
+	    let v4 = single_base_product(&secp_inst, f_gen, r2.clone());
+	    //v5 = r2*h
+	    let v5 = single_base_product(&secp_inst, h_gen, r2.clone());
+
+	    //v6 = s3*g1 + c2*g2
+	    let v6 = double_base_product(&secp_inst, pubkey_input.x.clone(), pubkey_output.x.clone(), svpok.s3.clone(), svpok.c2.clone());
+	    //v7 = s3*h1 + c2*h2
+	    let v7 = double_base_product(&secp_inst, pubkey_input.y.clone(), pubkey_output.y.clone(), svpok.s3.clone(), svpok.c2.clone());
+	    //v8 = s4*g1 + c2*z1
+	    let v8 = double_base_product(&secp_inst, pubkey_input.x.clone(), z1.clone(), svpok.s4.clone(), svpok.c2.clone());
+	    //v9 = s4*h1 + c2*z2
+	    let v9 = double_base_product(&secp_inst, pubkey_input.y.clone(), z2.clone(), svpok.s4.clone(), svpok.c2.clone());
+
+	    let hash_scalar = hash_special_tx(&secp_inst,
+	    								pubkey_input.x.clone(),
+	    								y1.clone(),
+	    								z1.clone(),
+	    								f_gen,
+	    								h_gen,
+	    								pubkey_input.y.clone(),
+	    								y2.clone(),
+	    								z2.clone(),
+	    								pubkey_output.x.clone(),
+	    								pubkey_output.y.clone(),
+	    								commitment_output.x.clone(),
+	    								v1.clone(),
+	    								v2.clone(),
+	    								v3.clone(),
+	    								v4.clone(),
+	    								v5.clone(),
+	    								v6.clone(),
+	    								v7.clone(),
+	    								v8.clone(),
+	    								v9.clone()
+	    								);
+
+	    // Calculation of -c_2
+	    let mut minus_c2 = svpok.c2.clone();
+	    minus_c2.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
+
+	    // Calculation of c_1
+	    svpok.c1 = hash_scalar;                                      // c_1 = H(S...r_3*G')
+	    svpok.c1.add_assign(&secp_inst, &minus_c2).unwrap();         // c_1 = H(S...r_3*G') - c_2
+
+	    svpok.s1 = a_minus_bx(&secp_inst, r1.clone(), svpok.c1.clone(), secret_key);
+	    svpok.s2 = a_minus_bx(&secp_inst, r2.clone(), svpok.c1.clone(), rand);
+
+	    svpok
+	}
+
+	pub fn verify_pok (
+		pubkey_input : QPublicKey,
+		commitment_input : QPublicKey,
+		pubkey_output : QPublicKey,
+		commitment_output : QPublicKey,
+		f_gen : PublicKey,
+		h_gen : PublicKey,
+		svpok : SpecialVerifyPoK,
+		) -> bool {
+
+	    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
+	    //v1 = s1*g1 + c1*h1
+	    let v1 = double_base_product(&secp_inst, pubkey_input.x.clone(), pubkey_input.y.clone(), svpok.s1.clone(), svpok.c1.clone());
+
+	    //v2 = s1*y1 + c1*y2        where y1 = g2-g1 and y2 = h2-h1
+	    let y1 = ratio(&secp_inst, pubkey_output.x.clone(), pubkey_input.x.clone());
+	    let y2 = ratio(&secp_inst, pubkey_output.y.clone(), pubkey_input.y.clone());
+	    let v2 = double_base_product(&secp_inst, y1.clone(), y2.clone(), svpok.s1.clone(), svpok.c1.clone());
+
+	    //v3 = s1*z1 + c1*z2        where z1 = c2-c1 and z2 = d2-d1
+	    let z1 = ratio(&secp_inst, commitment_output.x.clone(), commitment_input.x.clone());
+	    let z2 = ratio(&secp_inst, commitment_output.y.clone(), commitment_input.y.clone());
+	    let v3 = double_base_product(&secp_inst, z1.clone(), z2.clone(), svpok.s1.clone(), svpok.c1.clone());
+
+	    //v4 = s2*f + c1*g2
+	    let v4 = double_base_product(&secp_inst, f_gen.clone(), pubkey_output.x.clone(), svpok.s2.clone(), svpok.c1.clone());
+	    //v5 = s2*h + c1*c2
+	    let v5 = double_base_product(&secp_inst, h_gen.clone(), commitment_output.x.clone(), svpok.s2.clone(), svpok.c1.clone());
+
+	    //v6 = s3*g1 + c2*g2
+	    let v6 = double_base_product(&secp_inst, pubkey_input.x.clone(), pubkey_output.x.clone(), svpok.s3.clone(), svpok.c2.clone());
+	    //v7 = s3*h1 + c2*h2
+	    let v7 = double_base_product(&secp_inst, pubkey_input.y.clone(), pubkey_output.y.clone(), svpok.s3.clone(), svpok.c2.clone());
+	    //v8 = s4*g1 + c2*z1
+	    let v8 = double_base_product(&secp_inst, pubkey_input.x.clone(), z1.clone(), svpok.s4.clone(), svpok.c2.clone());
+	    //v9 = s4*h1 + c2*z2
+	    let v9 = double_base_product(&secp_inst, pubkey_input.y.clone(), z2.clone(), svpok.s4.clone(), svpok.c2.clone());
+
+	    let hash_scalar = hash_special_tx(&secp_inst,
+	    								pubkey_input.x.clone(),
+	    								y1.clone(),
+	    								z1.clone(),
+	    								f_gen,
+	    								h_gen,
+	    								pubkey_input.y.clone(),
+	    								y2.clone(),
+	    								z2.clone(),
+	    								pubkey_output.x.clone(),
+	    								pubkey_output.y.clone(),
+	    								commitment_output.x.clone(),
+	    								v1.clone(),
+	    								v2.clone(),
+	    								v3.clone(),
+	    								v4.clone(),
+	    								v5.clone(),
+	    								v6.clone(),
+	    								v7.clone(),
+	    								v8.clone(),
+	    								v9.clone()
+	    								);
+
+	    let mut c_sum = svpok.c1.clone();
+	    c_sum.add_assign(&secp_inst, &svpok.c2).unwrap();
+
+	    c_sum == hash_scalar    // comparing c1+c2 from SpecialVerifyPoK and evaluation of the scalar-hash
+	}
+}
+
+#[derive (Clone)]
+pub struct QuisquisPRPoK {
+	c1 : SecretKey,
+	c2 : SecretKey,
+	s1 : SecretKey,
+	s2 : SecretKey,
+	s3 : SecretKey,
+	s4 : SecretKey,
+}
+
+impl QuisquisPRPoK {
+	pub fn new() -> QuisquisPRPoK {
+		QuisquisPRPoK {
+			c1 : ZERO_KEY,
+			c2 : ZERO_KEY,
+			s1 : ZERO_KEY,
+			s2 : ZERO_KEY,
+			s3 : ZERO_KEY,
+			s4 : ZERO_KEY,
+		}
+	}
+
+	pub fn create_pok_from_decoykey (
+		pubkey : QPublicKey,
+		commitment : QPublicKey,
+		keyimage : PublicKey,
+		dkey : SecretKey,
+		f_gen : PublicKey,
+		g_gen : PublicKey,
+		) -> QuisquisPRPoK {
+
+		let mut rng = thread_rng();
+	    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
+	    let mut rpok = QuisquisPRPoK::new();
+	    let r4 = SecretKey::new(&secp_inst, &mut rng);
+	    rpok.c1 = SecretKey::new(&secp_inst, &mut rng);
+	    rpok.s1 = SecretKey::new(&secp_inst, &mut rng);
+	    rpok.s2 = SecretKey::new(&secp_inst, &mut rng);
+	    rpok.s3 = SecretKey::new(&secp_inst, &mut rng);
+
+	    //v1 = s3*f + c1*x     where x = g2
+	    let v1 = double_base_product(&secp_inst, f_gen.clone(), pubkey.x.clone(), rpok.s3.clone(), rpok.c1.clone());
+	    //v2 = s1*c2 + s2*g + c1*y        where y = d2
+	    let v2 = triple_base_product(&secp_inst, commitment.x.clone(), g_gen, commitment.y.clone(), rpok.s1.clone(), rpok.s2.clone(), rpok.c1.clone());
+	    //v3 = s2*g + s1*f + c1*z         where z = I_i
+	    let v3 = triple_base_product(&secp_inst, g_gen, f_gen, keyimage.clone(), rpok.s2.clone(), rpok.s1.clone(), rpok.c1.clone());
+	    //v4 = r4*f
+	    let v4 = single_base_product(&secp_inst, f_gen, r4.clone());
+
+	    // Calculation of H(S || V_1 || V_2 || V_3 || r_3*h)
+	    let mut hasher = Sha256::new();
+	    hasher.input(g_gen.serialize_vec(&secp_inst, true));            	// Hash g
+	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash c2
+	    hasher.input(f_gen.serialize_vec(&secp_inst, true));           		// Hash f
+	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash x
+	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash y
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash z
+	    hasher.input(v1.serialize_vec(&secp_inst, true));                   // Hash V_1
+	    hasher.input(v2.serialize_vec(&secp_inst, true));                   // Hash V_2
+	    hasher.input(v3.serialize_vec(&secp_inst, true));                   // Hash V_3
+	    hasher.input(v4.serialize_vec(&secp_inst, true));                 // Hash r_3*h
+
+	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
+
+	    // Calculation of -c_1
+	    let mut minus_c1 = rpok.c1.clone();
+	    minus_c1.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
+
+	    // Calculation of c_2
+	    rpok.c2 = hash_scalar;                                      // c_2 = H(S...r_3*G')
+	    rpok.c2.add_assign(&secp_inst, &minus_c1).unwrap();         // c_2 = H(S...r_3*G') - c_1
+
+	    // Calculation of s_3
+	    rpok.s4 = a_minus_bx(&secp_inst, r4.clone(), rpok.c2.clone(), dkey);
+
+	    rpok
+	}
+
+	pub fn create_pok_from_representation (
+		pubkey : QPublicKey,
+		commitment : QPublicKey,
+		keyimage : PublicKey,
+		secret_key : SecretKey,
+		amount : u64,
+		rand : SecretKey,
+		f_gen : PublicKey,
+		g_gen : PublicKey
+		) -> QuisquisPRPoK {
+
+		let mut rng = thread_rng();
+	    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
+	    let mut rpok = QuisquisPRPoK::new();
+	    let r1 = SecretKey::new(&secp_inst, &mut rng);
+	    let r2 = SecretKey::new(&secp_inst, &mut rng);
+	    let r3 = SecretKey::new(&secp_inst, &mut rng);
+	    rpok.c2 = SecretKey::new(&secp_inst, &mut rng);
+	    rpok.s4 = SecretKey::new(&secp_inst, &mut rng);
+
+	    //v1 = r3*f
+	    let v1 = single_base_product(&secp_inst, f_gen, r3.clone());
+	    //v2 = r1*c2 + r2*g   
+	    let v2 = double_base_product(&secp_inst, commitment.x.clone(), g_gen, r1.clone(), r2.clone());
+	    //v3 = r2*g + r1*f
+	    let v3 = double_base_product(&secp_inst, g_gen, f_gen, r2.clone(), r1.clone());
+	    //v4 = s4*f + c2*z
+	    let v4 = double_base_product(&secp_inst, f_gen, keyimage.clone(), rpok.s4.clone(), rpok.c2.clone());
+
+	    // Calculation of H(S || V_1 || V_2 || V_3 || r_3*h)
+	    let mut hasher = Sha256::new();
+	    hasher.input(g_gen.serialize_vec(&secp_inst, true));            	// Hash g
+	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash c2
+	    hasher.input(f_gen.serialize_vec(&secp_inst, true));           		// Hash f
+	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash x
+	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash y
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash z
+	    hasher.input(v1.serialize_vec(&secp_inst, true));                // Hash r1_g1
+	    hasher.input(v2.serialize_vec(&secp_inst, true));             // Hash r1g2_r2g
+	    hasher.input(v3.serialize_vec(&secp_inst, true));              // Hash r2g_r1h
+	    hasher.input(v4.serialize_vec(&secp_inst, true));                   // Hash V_4
+
+	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
+
+	    // Calculation of -c_2
+	    let mut minus_c2 = rpok.c2.clone();
+	    minus_c2.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
+
+	    // Calculation of c_1
+	    rpok.c1 = hash_scalar;                                      // c_1 = H(S...r_3*G')
+	    rpok.c1.add_assign(&secp_inst, &minus_c2).unwrap();         // c_1 = H(S...r_3*G') - c_2
+
+	    rpok.s1 = a_minus_bx(&secp_inst, r1.clone(), rpok.c1.clone(), secret_key);
+	    rpok.s2 = a_minus_bx(&secp_inst, r2.clone(), rpok.c1.clone(), amount_to_key(&secp_inst, amount));
+	    rpok.s3 = a_minus_bx(&secp_inst, r3.clone(), rpok.c1.clone(), rand.clone());
+
+	    rpok
+	}
+
+  	pub fn verify_pok (
+  		pubkey : QPublicKey,
+  		commitment : QPublicKey,
+  		keyimage : PublicKey,
+  		f_gen : PublicKey,
+  		g_gen : PublicKey,
+  		rpok : QuisquisPRPoK
+  		) -> bool {
+
+  		let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
+  		//v1 = s3*f + c1*x     where x = g2
+	    let v1 = double_base_product(&secp_inst, f_gen.clone(), pubkey.x.clone(), rpok.s3.clone(), rpok.c1.clone());
+	    //v2 = s1*c2 + s2*g + c1*y        where y = d2
+	    let v2 = triple_base_product(&secp_inst, commitment.x.clone(), g_gen, commitment.y.clone(), rpok.s1.clone(), rpok.s2.clone(), rpok.c1.clone());
+	    //v3 = s2*g + s1*f + c1*z         where z = I_i
+	    let v3 = triple_base_product(&secp_inst, g_gen, f_gen, keyimage.clone(), rpok.s2.clone(), rpok.s1.clone(), rpok.c1.clone());
+	    //v4 = s4*f + c2*z
+	    let v4 = double_base_product(&secp_inst, f_gen, keyimage.clone(), rpok.s4.clone(), rpok.c2.clone());
+
+	    // Calculation of H(S || V_1 || V_2 || V_3 || V_4)
+	    let mut hasher = Sha256::new();
+	    hasher.input(g_gen.serialize_vec(&secp_inst, true));            	// Hash g
+	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash c2
+	    hasher.input(f_gen.serialize_vec(&secp_inst, true));           		// Hash f
+	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash x
+	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash y
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash z
+	    hasher.input(v1.serialize_vec(&secp_inst, true));                   // Hash V_1
+	    hasher.input(v2.serialize_vec(&secp_inst, true));                   // Hash V_2
+	    hasher.input(v3.serialize_vec(&secp_inst, true));                   // Hash V_3
+	    hasher.input(v4.serialize_vec(&secp_inst, true));                   // Hash V_4
+
+	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
+
+	    let mut c_sum = rpok.c1.clone();
+	    c_sum.add_assign(&secp_inst, &rpok.c2).unwrap();
+
+	    c_sum == hash_scalar    // comparing c1+c2 from QuisQuisPRPoK and evaluation of the scalar-hash
+	}
+}
