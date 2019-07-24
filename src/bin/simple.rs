@@ -3,7 +3,7 @@ extern crate quisquis;
 use structopt::StructOpt;
 
 use std::time::{Instant, Duration};
-use quisquis::simple_exchange::SimpleQuisquisExchange;
+use quisquis::simple_exchange::SimpleExchange;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "simple", about = "Simple reserve proof generation simulator.")]
@@ -18,7 +18,7 @@ fn main() {
     let opt = Opt::from_args();
 
     let num_iter = opt.num_iter;
-    let mut quisquis_exch = SimpleQuisquisExchange::new(opt.own_list_size);
+    let mut quisquis_exch = SimpleExchange::new(opt.own_list_size);
     let mut simple_proof;
     let mut gen_proof_start;
     let mut gen_proof_end;
@@ -26,9 +26,7 @@ fn main() {
     let mut ver_proof_end;
     let mut total_gen_proof_duration = Duration::new(0, 0);
     let mut total_ver_proof_duration = Duration::new(0, 0);
-    
     let sim_start = Instant::now();
-
     for _i in 0..num_iter {
       gen_proof_start = Instant::now();
       simple_proof = quisquis_exch.generate_proof();
