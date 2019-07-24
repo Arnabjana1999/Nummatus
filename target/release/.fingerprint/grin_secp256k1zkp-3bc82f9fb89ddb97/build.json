@@ -1,1 +1,1 @@
-{"rustc":11662075050264400882,"features":"","target":0,"profile":0,"path":0,"deps":[["grin_secp256k1zkp v0.7.6","build_script_build",13702072982273320493]],"local":[{"Precalculated":"0.7.6"}],"rustflags":[],"metadata":0}
+{"rustc":11662075050264400882,"features":"","target":0,"profile":0,"path":0,"deps":[["grin_secp256k1zkp v0.7.6","build_script_build",5932911791031897373]],"local":[{"Precalculated":"0.7.6"}],"rustflags":[],"metadata":0}
