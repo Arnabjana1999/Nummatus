@@ -204,10 +204,12 @@ impl QuisquisExchange {
         qproof.commitment_output_list[i].y = PublicKey::from_combination(&secp_inst, vec![&d1, &r2_h1]).unwrap();
 
         hasher.input(dkeys_seed.clone());                                                        // Hash k_exch
-        hasher.input(qproof.commitment_output_list[i].x.serialize_vec(&secp_inst, true));       // Hash C_i
-        hasher.input(qproof.commitment_output_list[i].y.serialize_vec(&secp_inst, true));       // Hash C_i
+        hasher.input(qproof.pubkey_input_list[i].x.serialize_vec(&secp_inst, true));             // Hash g_1
+        hasher.input(qproof.pubkey_input_list[i].y.serialize_vec(&secp_inst, true));             // Hash h_1
+        hasher.input(qproof.commitment_input_list[i].x.serialize_vec(&secp_inst, true));         // Hash c_1
+        hasher.input(qproof.commitment_input_list[i].y.serialize_vec(&secp_inst, true));         // Hash d_1
         dkeys[i] = SecretKey::from_slice(&secp_inst, &hasher.clone().result()).unwrap();
-        qproof.keyimage_list[i] = qproof.f_basepoint.clone(); // I_i = SHA256(k_exch, C_i)*G' + 0*H
+        qproof.keyimage_list[i] = qproof.f_basepoint.clone();                               // I_i = SHA256(k_exch, acct_i)*f + 0*g
         qproof.keyimage_list[i].mul_assign(&secp_inst, &dkeys[i]).unwrap();
         hasher.reset();
       }
