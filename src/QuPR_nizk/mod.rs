@@ -45,8 +45,9 @@ impl SpecialVerifyPoK {
 		commitment_output : QPublicKey,
 		rand1 : SecretKey,
 		rand2 : SecretKey,
-		f_gen : PublicKey,
+		g_gen : PublicKey,
 		h_gen : PublicKey,
+		f_gen : PublicKey,
 		) -> SpecialVerifyPoK {
 
 		let mut rng = thread_rng();
@@ -87,17 +88,21 @@ impl SpecialVerifyPoK {
 	    let v9 = single_base_product(&secp_inst, pubkey_input.y.clone(), r4.clone());
 
 	    let hash_scalar = hash_special_tx(&secp_inst,
-	    								pubkey_input.x.clone(),
-	    								y1.clone(),
-	    								z1.clone(),
+	    								g_gen,
 	    								f_gen,
 	    								h_gen,
-	    								pubkey_input.y.clone(),
-	    								y2.clone(),
-	    								z2.clone(),
-	    								pubkey_output.x.clone(),
-	    								pubkey_output.y.clone(),
-	    								commitment_output.x.clone(),
+	    								pubkey_input.x.clone(),          //g1
+	    								pubkey_input.y.clone(),          //h1
+	    								commitment_input.x.clone(),      //c1
+	    								commitment_input.y.clone(),      //d1
+	    								pubkey_output.x.clone(),         //g2
+	    								pubkey_output.y.clone(),         //h2
+	    								commitment_output.x.clone(),     //c2
+	    								commitment_output.y.clone(),     //d2
+	    								y1.clone(),                      //g_div
+	    								y2.clone(),                      //h_div
+	    								z1.clone(),                      //c_div
+	    								z2.clone(),                      //d_div
 	    								v1.clone(),
 	    								v2.clone(),
 	    								v3.clone(),
@@ -130,8 +135,9 @@ impl SpecialVerifyPoK {
 		commitment_output : QPublicKey,
 		secret_key : SecretKey,
 		rand : SecretKey,
-		f_gen : PublicKey,
+		g_gen : PublicKey,
 		h_gen : PublicKey,
+		f_gen : PublicKey,
 		) -> SpecialVerifyPoK {
 
 		let mut rng = thread_rng();
@@ -172,17 +178,21 @@ impl SpecialVerifyPoK {
 	    let v9 = double_base_product(&secp_inst, pubkey_input.y.clone(), z2.clone(), svpok.s4.clone(), svpok.e2.clone());
 
 	    let hash_scalar = hash_special_tx(&secp_inst,
-	    								pubkey_input.x.clone(),
-	    								y1.clone(),
-	    								z1.clone(),
+	    								g_gen,
 	    								f_gen,
 	    								h_gen,
-	    								pubkey_input.y.clone(),
-	    								y2.clone(),
-	    								z2.clone(),
-	    								pubkey_output.x.clone(),
-	    								pubkey_output.y.clone(),
-	    								commitment_output.x.clone(),
+	    								pubkey_input.x.clone(),          //g1
+	    								pubkey_input.y.clone(),          //h1
+	    								commitment_input.x.clone(),      //c1
+	    								commitment_input.y.clone(),      //d1
+	    								pubkey_output.x.clone(),         //g2
+	    								pubkey_output.y.clone(),         //h2
+	    								commitment_output.x.clone(),     //c2
+	    								commitment_output.y.clone(),     //d2
+	    								y1.clone(),                      //g_div
+	    								y2.clone(),                      //h_div
+	    								z1.clone(),                      //c_div
+	    								z2.clone(),                      //d_div
 	    								v1.clone(),
 	    								v2.clone(),
 	    								v3.clone(),
@@ -213,8 +223,9 @@ impl SpecialVerifyPoK {
 		commitment_input : QPublicKey,
 		pubkey_output : QPublicKey,
 		commitment_output : QPublicKey,
-		f_gen : PublicKey,
+		g_gen : PublicKey,
 		h_gen : PublicKey,
+		f_gen : PublicKey,
 		svpok : SpecialVerifyPoK,
 		) -> bool {
 
@@ -248,17 +259,21 @@ impl SpecialVerifyPoK {
 	    let v9 = double_base_product(&secp_inst, pubkey_input.y.clone(), z2.clone(), svpok.s4.clone(), svpok.e2.clone());
 
 	    let hash_scalar = hash_special_tx(&secp_inst,
-	    								pubkey_input.x.clone(),
-	    								y1.clone(),
-	    								z1.clone(),
+	    								g_gen,
 	    								f_gen,
 	    								h_gen,
-	    								pubkey_input.y.clone(),
-	    								y2.clone(),
-	    								z2.clone(),
-	    								pubkey_output.x.clone(),
-	    								pubkey_output.y.clone(),
-	    								commitment_output.x.clone(),
+	    								pubkey_input.x.clone(),          //g1
+	    								pubkey_input.y.clone(),          //h1
+	    								commitment_input.x.clone(),      //c1
+	    								commitment_input.y.clone(),      //d1
+	    								pubkey_output.x.clone(),         //g2
+	    								pubkey_output.y.clone(),         //h2
+	    								commitment_output.x.clone(),     //c2
+	    								commitment_output.y.clone(),     //d2
+	    								y1.clone(),                      //g_div
+	    								y2.clone(),                      //h_div
+	    								z1.clone(),                      //c_div
+	    								z2.clone(),                      //d_div
 	    								v1.clone(),
 	    								v2.clone(),
 	    								v3.clone(),
@@ -304,8 +319,9 @@ impl QuisquisPRPoK {
 		commitment : QPublicKey,
 		keyimage : PublicKey,
 		dkey : SecretKey,
-		f_gen : PublicKey,
 		g_gen : PublicKey,
+		h_gen : PublicKey,
+		f_gen : PublicKey,
 		) -> QuisquisPRPoK {
 
 		let mut rng = thread_rng();
@@ -327,18 +343,20 @@ impl QuisquisPRPoK {
 	    //v4 = r4*f
 	    let v4 = single_base_product(&secp_inst, f_gen, r4.clone());
 
-	    // Calculation of H(S || V_1 || V_2 || V_3 || r_3*h)
+	    // Calculation of H(S || V_1 || V_2 || V_3 || V_4)
 	    let mut hasher = Sha256::new();
 	    hasher.input(g_gen.serialize_vec(&secp_inst, true));            	// Hash g
-	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash e2
+	    hasher.input(h_gen.serialize_vec(&secp_inst, true));                // Hash h
 	    hasher.input(f_gen.serialize_vec(&secp_inst, true));           		// Hash f
-	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash x
-	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash y
-	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash z
+	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash g2
+	    hasher.input(pubkey.y.serialize_vec(&secp_inst, true));             // Hash h2
+	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash c2
+	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash d2
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash x
 	    hasher.input(v1.serialize_vec(&secp_inst, true));                   // Hash V_1
 	    hasher.input(v2.serialize_vec(&secp_inst, true));                   // Hash V_2
 	    hasher.input(v3.serialize_vec(&secp_inst, true));                   // Hash V_3
-	    hasher.input(v4.serialize_vec(&secp_inst, true));                 // Hash r_3*h
+	    hasher.input(v4.serialize_vec(&secp_inst, true));                   // Hash r_3*h
 
 	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
 
@@ -347,8 +365,8 @@ impl QuisquisPRPoK {
 	    minus_e1.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
 
 	    // Calculation of e_2
-	    rpok.e2 = hash_scalar;                                      // e_2 = H(S...r_3*G')
-	    rpok.e2.add_assign(&secp_inst, &minus_e1).unwrap();         // e_2 = H(S...r_3*G') - e_1
+	    rpok.e2 = hash_scalar;                                      // e_2 = H(S...)
+	    rpok.e2.add_assign(&secp_inst, &minus_e1).unwrap();         // e_2 = H(S...) - e_1
 
 	    // Calculation of s_3
 	    rpok.s4 = a_minus_bx(&secp_inst, r4.clone(), rpok.e2.clone(), dkey);
@@ -363,8 +381,9 @@ impl QuisquisPRPoK {
 		secret_key : SecretKey,
 		amount : u64,
 		rand : SecretKey,
+		g_gen : PublicKey,
+		h_gen : PublicKey,
 		f_gen : PublicKey,
-		g_gen : PublicKey
 		) -> QuisquisPRPoK {
 
 		let mut rng = thread_rng();
@@ -386,17 +405,19 @@ impl QuisquisPRPoK {
 	    //v4 = s4*f + e2*z
 	    let v4 = double_base_product(&secp_inst, f_gen, keyimage.clone(), rpok.s4.clone(), rpok.e2.clone());
 
-	    // Calculation of H(S || V_1 || V_2 || V_3 || r_3*h)
+	    // Calculation of H(S || V_1 || V_2 || V_3 || V_4)
 	    let mut hasher = Sha256::new();
 	    hasher.input(g_gen.serialize_vec(&secp_inst, true));            	// Hash g
-	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash e2
+	    hasher.input(h_gen.serialize_vec(&secp_inst, true));                // Hash h
 	    hasher.input(f_gen.serialize_vec(&secp_inst, true));           		// Hash f
-	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash x
-	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash y
-	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash z
-	    hasher.input(v1.serialize_vec(&secp_inst, true));                // Hash r1_g1
-	    hasher.input(v2.serialize_vec(&secp_inst, true));             // Hash r1g2_r2g
-	    hasher.input(v3.serialize_vec(&secp_inst, true));              // Hash r2g_r1h
+	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash g2
+	    hasher.input(pubkey.y.serialize_vec(&secp_inst, true));             // Hash h2
+	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash c2
+	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash d2
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash x
+	    hasher.input(v1.serialize_vec(&secp_inst, true));                   // Hash V_1
+	    hasher.input(v2.serialize_vec(&secp_inst, true));                   // Hash V_2
+	    hasher.input(v3.serialize_vec(&secp_inst, true));                   // Hash V_3
 	    hasher.input(v4.serialize_vec(&secp_inst, true));                   // Hash V_4
 
 	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
@@ -406,8 +427,8 @@ impl QuisquisPRPoK {
 	    minus_e2.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
 
 	    // Calculation of e_1
-	    rpok.e1 = hash_scalar;                                      // e_1 = H(S...r_3*G')
-	    rpok.e1.add_assign(&secp_inst, &minus_e2).unwrap();         // e_1 = H(S...r_3*G') - e_2
+	    rpok.e1 = hash_scalar;                                      // e_1 = H(S...)
+	    rpok.e1.add_assign(&secp_inst, &minus_e2).unwrap();         // e_1 = H(S...) - e_2
 
 	    rpok.s1 = a_minus_bx(&secp_inst, r1.clone(), rpok.e1.clone(), secret_key);
 	    rpok.s2 = a_minus_bx(&secp_inst, r2.clone(), rpok.e1.clone(), amount_to_key(&secp_inst, amount));
@@ -420,8 +441,9 @@ impl QuisquisPRPoK {
   		pubkey : QPublicKey,
   		commitment : QPublicKey,
   		keyimage : PublicKey,
-  		f_gen : PublicKey,
   		g_gen : PublicKey,
+  		h_gen : PublicKey,
+  		f_gen : PublicKey,
   		rpok : QuisquisPRPoK
   		) -> bool {
 
@@ -439,15 +461,17 @@ impl QuisquisPRPoK {
 	    // Calculation of H(S || V_1 || V_2 || V_3 || V_4)
 	    let mut hasher = Sha256::new();
 	    hasher.input(g_gen.serialize_vec(&secp_inst, true));            	// Hash g
-	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash e2
+	    hasher.input(h_gen.serialize_vec(&secp_inst, true));                // Hash h
 	    hasher.input(f_gen.serialize_vec(&secp_inst, true));           		// Hash f
-	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash x
-	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash y
-	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash z
+	    hasher.input(pubkey.x.serialize_vec(&secp_inst, true));             // Hash g2
+	    hasher.input(pubkey.y.serialize_vec(&secp_inst, true));             // Hash h2
+	    hasher.input(commitment.x.serialize_vec(&secp_inst, true));         // Hash c2
+	    hasher.input(commitment.y.serialize_vec(&secp_inst, true));         // Hash d2
+	    hasher.input(keyimage.serialize_vec(&secp_inst, true));             // Hash x
 	    hasher.input(v1.serialize_vec(&secp_inst, true));                   // Hash V_1
 	    hasher.input(v2.serialize_vec(&secp_inst, true));                   // Hash V_2
 	    hasher.input(v3.serialize_vec(&secp_inst, true));                   // Hash V_3
-	    hasher.input(v4.serialize_vec(&secp_inst, true));                   // Hash V_4
+	    hasher.input(v4.serialize_vec(&secp_inst, true));                   // Hash v_4
 
 	    let hash_scalar = SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap();
 

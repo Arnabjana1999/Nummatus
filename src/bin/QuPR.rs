@@ -3,7 +3,7 @@ extern crate quisquis;
 use structopt::StructOpt;
 
 use std::time::{Instant, Duration};
-use quisquis::modified_exchange::QuisquisExchange;
+use quisquis::QuPR_exchange::QuisquisExchange;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "quisquis", about = "Quisquis_PoA proof generation simulator.")]

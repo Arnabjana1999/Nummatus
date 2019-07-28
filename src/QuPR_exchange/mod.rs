@@ -13,20 +13,20 @@ use crate::misc::GENERATOR_F;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
 use crate::misc::amount_to_key;
 
-use crate::modified_nizk::SpecialVerifyPoK;
-use crate::modified_nizk::QuisquisPRPoK;
+use crate::QuPR_nizk::SpecialVerifyPoK;
+use crate::QuPR_nizk::QuisquisPRPoK;
 
 pub struct QuisquisProof {
-  pub pubkey_input_list: Vec<QPublicKey>,          //Public_keys   
-  pub pubkey_output_list: Vec<QPublicKey>,          //Public_keys   
-  pub commitment_input_list: Vec<QPublicKey>,      //Commitments
-  pub commitment_output_list: Vec<QPublicKey>,      //Commitments
-  pub keyimage_list: Vec<PublicKey>,         //key-images
+  pub pubkey_input_list: Vec<QPublicKey>,           //Public_keys prior update   
+  pub pubkey_output_list: Vec<QPublicKey>,          //Public_keys post update  
+  pub commitment_input_list: Vec<QPublicKey>,       //Commitments prior update
+  pub commitment_output_list: Vec<QPublicKey>,      //Commitments post update
+  pub keyimage_list: Vec<PublicKey>,                //key-images
   pub pok_su_list: Vec<SpecialVerifyPoK>,      
   pub pok_pr_list: Vec<QuisquisPRPoK>,          
   g_basepoint: PublicKey,                //g
-  h_basepoint: PublicKey,               //h
-  f_basepoint: PublicKey,               //f
+  h_basepoint: PublicKey,                //h
+  f_basepoint: PublicKey,                //f
 }
 
 impl QuisquisProof {
@@ -65,8 +65,9 @@ impl QuisquisProof {
         self.commitment_input_list[i],
         self.pubkey_output_list[i],
         self.commitment_output_list[i],
-        self.f_basepoint,
+        self.g_basepoint,
         self.h_basepoint,
+        self.f_basepoint,
         self.pok_su_list[i].clone(),
       ) == false {
         return false;
@@ -78,8 +79,9 @@ impl QuisquisProof {
         self.pubkey_output_list[i],
         self.commitment_output_list[i],
         self.keyimage_list[i],
-        self.f_basepoint,
         self.g_basepoint,
+        self.h_basepoint,
+        self.f_basepoint,
         self.pok_pr_list[i].clone(),
       ) == false {
         return false;
@@ -235,8 +237,9 @@ impl QuisquisExchange {
                                             self.quisquis_proof.commitment_output_list[i],
                                             self.own_keys[i].clone(),
                                             self.own_randomness[i].clone(),
-                                            self.quisquis_proof.f_basepoint,     // f
-                                            self.quisquis_proof.h_basepoint,    // h
+                                            self.quisquis_proof.g_basepoint,     //g
+                                            self.quisquis_proof.h_basepoint,     //h
+                                            self.quisquis_proof.f_basepoint,     //f
                                           );
 
         self.quisquis_proof.pok_pr_list[i] = QuisquisPRPoK::create_pok_from_representation(
@@ -246,8 +249,9 @@ impl QuisquisExchange {
                                             self.own_keys[i].clone(),
                                             self.own_amounts[i],
                                             self.own_randomness[i].clone(),
-                                            self.quisquis_proof.f_basepoint,     // f
-                                            self.quisquis_proof.g_basepoint,    // g
+                                            self.quisquis_proof.g_basepoint,     //g
+                                            self.quisquis_proof.h_basepoint,     //h
+                                            self.quisquis_proof.f_basepoint,     //f
                                           );
       } else {
         self.quisquis_proof.pok_su_list[i] = SpecialVerifyPoK::create_pok_from_decoy(
@@ -257,8 +261,9 @@ impl QuisquisExchange {
                                             self.quisquis_proof.commitment_output_list[i],
                                             self.decoy_rand1[i].clone(),
                                             self.decoy_rand2[i].clone(),
-                                            self.quisquis_proof.f_basepoint,     // f
-                                            self.quisquis_proof.h_basepoint,    // h
+                                            self.quisquis_proof.g_basepoint,     //g
+                                            self.quisquis_proof.h_basepoint,     //h
+                                            self.quisquis_proof.f_basepoint,     //f
                                           );
 
         self.quisquis_proof.pok_pr_list[i] = QuisquisPRPoK::create_pok_from_decoykey(
@@ -266,8 +271,9 @@ impl QuisquisExchange {
                                             self.quisquis_proof.commitment_output_list[i],
                                             self.quisquis_proof.keyimage_list[i],
                                             self.decoy_keys[i].clone(),
-                                            self.quisquis_proof.f_basepoint,     // f
-                                            self.quisquis_proof.g_basepoint,    // g
+                                            self.quisquis_proof.g_basepoint,     //g
+                                            self.quisquis_proof.h_basepoint,     //h
+                                            self.quisquis_proof.f_basepoint,     //f
                                           );
       } 
     } 

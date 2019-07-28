@@ -71,8 +71,9 @@ impl SimpleProof {
         self.commitment_input_list[i],
         self.pubkey_output_list[i],
         self.commitment_output_list[i],
-        self.f_basepoint,
+        self.g_basepoint,
         self.h_basepoint,
+        self.f_basepoint,
         self.pok_su_list[i].clone(),
       ) == false {
         return false;
@@ -84,8 +85,9 @@ impl SimpleProof {
         self.pubkey_output_list[i],
         self.commitment_output_list[i],
         self.keyimage_list[i],
-        self.f_basepoint,
         self.g_basepoint,
+        self.h_basepoint,
+        self.f_basepoint,
         self.pok_pr_list[i].clone(),
       ) == false {
         return false;
@@ -151,10 +153,8 @@ impl SimpleExchange {
         r2_hi.mul_assign(&secp_inst, &r2).unwrap();
         simproof.commitment_input_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_hi]).unwrap();
 
-        simproof.pubkey_output_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_F).unwrap();
-        simproof.pubkey_output_list[i].x.mul_assign(&secp_inst, &orand[i]).unwrap();
-        simproof.pubkey_output_list[i].y = simproof.pubkey_output_list[i].x.clone();
-        simproof.pubkey_output_list[i].y.mul_assign(&secp_inst, &okeys[i]).unwrap();
+        simproof.pubkey_output_list[i].x = simproof.pubkey_input_list[i].x.clone();
+        simproof.pubkey_output_list[i].y = simproof.pubkey_input_list[i].y.clone();
 
         simproof.commitment_output_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_H).unwrap();
         simproof.commitment_output_list[i].x.mul_assign(&secp_inst, &orand[i]).unwrap();
@@ -197,8 +197,9 @@ impl SimpleExchange {
                                             self.simple_proof.commitment_output_list[i],
                                             self.own_keys[i].clone(),
                                             self.own_randomness[i].clone(),
+                                            self.simple_proof.g_basepoint,   
+                                            self.simple_proof.h_basepoint,
                                             self.simple_proof.f_basepoint,   
-                                            self.simple_proof.h_basepoint,   
                                           );
 
         self.simple_proof.pok_pr_list[i] = QuisquisPRPoK::create_pok(
@@ -207,9 +208,9 @@ impl SimpleExchange {
                                             self.simple_proof.keyimage_list[i],
                                             self.own_keys[i].clone(),
                                             self.own_amounts[i],
-                                            self.own_randomness[i].clone(),
-                                            self.simple_proof.f_basepoint,   
                                             self.simple_proof.g_basepoint,   
+                                            self.simple_proof.h_basepoint,
+                                            self.simple_proof.f_basepoint,   
                                           );
       } 
 
