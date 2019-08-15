@@ -69,7 +69,6 @@ pub struct SimpleExchange {
   own_keys: Vec<SecretKey>,            //k_i
   own_amounts: Vec<u64>,               //v_i
   own_blinding: Vec<SecretKey>,        //w_i
-  own_minus_blinding: Vec<SecretKey>,  //-w_i
 }
 
 impl SimpleExchange {
@@ -80,7 +79,6 @@ impl SimpleExchange {
     let mut okeys = Vec::new();
     let mut amounts = vec![0u64; olist_size];
     let mut oblind = vec![ZERO_KEY; olist_size];
-    let mut o_minus_blind = vec![ZERO_KEY; olist_size];
 
     let mut rng = thread_rng();
 
@@ -94,20 +92,18 @@ impl SimpleExchange {
     for i in 0..olist_size {
         
         oblind[i] = SecretKey::new(&secp_inst, &mut rng);
-        o_minus_blind[i] = oblind[i].clone();
-        o_minus_blind[i].mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
         amounts[i] = rng.gen_range(1, MAX_AMOUNT_PER_OUTPUT);
 
         let r1 = SecretKey::new(&secp_inst, &mut rng);
         let r2 = SecretKey::new(&secp_inst, &mut rng);
 
-        simproof.pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();
+        simproof.pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();   //generating publickey from secretkey
         simproof.pubkey_list[i].x.mul_assign(&secp_inst, &r1).unwrap();
         simproof.pubkey_list[i].y = simproof.pubkey_list[i].x.clone();
         simproof.pubkey_list[i].y.mul_assign(&secp_inst, &okeys[i]).unwrap();
 
 
-        simproof.commitment_list[i].x = simproof.pubkey_list[i].x.clone();
+        simproof.commitment_list[i].x = simproof.pubkey_list[i].x.clone();        //generating commitment from publickey and amount
         simproof.commitment_list[i].x.mul_assign(&secp_inst, &r2).unwrap();
         let mut v_g = simproof.g_basepoint.clone();
         v_g.mul_assign(&secp_inst, &amount_to_key(&secp_inst, amounts[i])).unwrap();
@@ -115,7 +111,7 @@ impl SimpleExchange {
         r2_d.mul_assign(&secp_inst, &r2).unwrap();
         simproof.commitment_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_d]).unwrap();
 
-        let mut w_h = simproof.h_basepoint.clone();
+        let mut w_h = simproof.h_basepoint.clone();                              //generating pederson commitment from blinding factor
         w_h.mul_assign(&secp_inst, &oblind[i].clone()).unwrap();
         simproof.pederson_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &w_h]).unwrap();
     }
@@ -126,19 +122,23 @@ impl SimpleExchange {
       own_keys: okeys,
       own_amounts: amounts,
       own_blinding: oblind,
-      own_minus_blinding: o_minus_blind,
     }
   }
 
   pub fn generate_proof(&mut self) -> Simple {
 
+    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+
     for i in 0..self.own_list_size {
+        let mut minus_blinding = self.own_blinding[i].clone();
+        minus_blinding.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
+
         self.Simple_proof.pok_list[i] = SimplePoK::create_pok_from_representation(
                                             self.Simple_proof.pubkey_list[i],
                                             self.Simple_proof.commitment_list[i],
                                             self.Simple_proof.pederson_list[i],
                                             self.own_keys[i].clone(),
-                                            self.own_minus_blinding[i].clone(),
+                                            minus_blinding,
                                             self.Simple_proof.h_basepoint,     
                                           );
       } 
