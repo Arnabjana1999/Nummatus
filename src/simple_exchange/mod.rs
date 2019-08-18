@@ -68,7 +68,6 @@ pub struct SimpleExchange {
   Simple_proof: Simple,
   own_keys: Vec<SecretKey>,            //k_i
   own_amounts: Vec<u64>,               //v_i
-  own_blinding: Vec<SecretKey>,        //w_i
 }
 
 impl SimpleExchange {
@@ -78,7 +77,6 @@ impl SimpleExchange {
     let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
     let mut okeys = Vec::new();
     let mut amounts = vec![0u64; olist_size];
-    let mut oblind = vec![ZERO_KEY; olist_size];
 
     let mut rng = thread_rng();
 
@@ -91,7 +89,6 @@ impl SimpleExchange {
 
     for i in 0..olist_size {
         
-        oblind[i] = SecretKey::new(&secp_inst, &mut rng);
         amounts[i] = rng.gen_range(1, MAX_AMOUNT_PER_OUTPUT);
 
         let r1 = SecretKey::new(&secp_inst, &mut rng);
@@ -111,9 +108,9 @@ impl SimpleExchange {
         r2_d.mul_assign(&secp_inst, &r2).unwrap();
         simproof.commitment_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_d]).unwrap();
 
-        let mut w_h = simproof.h_basepoint.clone();                              //generating pederson commitment from blinding factor
-        w_h.mul_assign(&secp_inst, &oblind[i].clone()).unwrap();
-        simproof.pederson_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &w_h]).unwrap();
+        let mut k_h = simproof.h_basepoint.clone();                              //generating pederson commitment from blinding factor
+        k_h.mul_assign(&secp_inst, &okeys[i].clone()).unwrap();
+        simproof.pederson_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &k_h]).unwrap();
     }
 
     SimpleExchange  {
@@ -121,7 +118,6 @@ impl SimpleExchange {
       Simple_proof: simproof,
       own_keys: okeys,
       own_amounts: amounts,
-      own_blinding: oblind,
     }
   }
 
@@ -130,15 +126,12 @@ impl SimpleExchange {
     let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
 
     for i in 0..self.own_list_size {
-        let mut minus_blinding = self.own_blinding[i].clone();
-        minus_blinding.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
 
         self.Simple_proof.pok_list[i] = SimplePoK::create_pok_from_representation(
                                             self.Simple_proof.pubkey_list[i],
                                             self.Simple_proof.commitment_list[i],
                                             self.Simple_proof.pederson_list[i],
                                             self.own_keys[i].clone(),
-                                            minus_blinding,
                                             self.Simple_proof.h_basepoint,     
                                           );
       } 

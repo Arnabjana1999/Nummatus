@@ -5,4 +5,4 @@ Nummatus is the anonymous privacy-preserving Proof of Reserves.
 
 Steps to run the code:
 1. Clone the repository
-2. Run the executables run_simple_sim.sh and run_Nummatus_sim.sh
+2. Run ./run_simple_sim.sh and ./run_Nummatus_sim.sh for simple protocol and Nummatus simulation respectively. 

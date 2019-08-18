@@ -155,8 +155,7 @@ pub fn hash_simple_tx (
 pub fn hash_special_tx (
     secp_inst: &Secp256k1,
     a1: PublicKey, a2: PublicKey, a3: PublicKey, a4: PublicKey, a5: PublicKey,
-    a6: PublicKey, a7: PublicKey, a8: PublicKey, a9: PublicKey, a10: PublicKey, 
-    a11: PublicKey, a12: PublicKey
+    a6: PublicKey, a7: PublicKey, a8: PublicKey, a9: PublicKey
     ) -> SecretKey {
 
     let mut hasher = Sha256::new();
@@ -168,10 +167,7 @@ pub fn hash_special_tx (
     hasher.input(a6.serialize_vec(&secp_inst, true));
     hasher.input(a7.serialize_vec(&secp_inst, true));
     hasher.input(a8.serialize_vec(&secp_inst, true));
-    hasher.input(a9.serialize_vec(&secp_inst, true));
-    hasher.input(a10.serialize_vec(&secp_inst, true));
-    hasher.input(a11.serialize_vec(&secp_inst, true));
-    hasher.input(a12.serialize_vec(&secp_inst, true));          
+    hasher.input(a9.serialize_vec(&secp_inst, true));    
     
     SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap()
 }

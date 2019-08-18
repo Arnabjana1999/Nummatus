@@ -17,14 +17,12 @@ use crate::misc::amount_to_key;
 use crate::Nummatus_nizk::NummatusPoK;
 
 pub struct Nummatus {
-  pub pubkey_list: Vec<QPublicKey>,           //Public_keys 
+  pub pubkey_list: Vec<QPublicKey>,           //public-keys 
   pub commitment_list: Vec<QPublicKey>,       //Commitments
-  pub pederson_list: Vec<PublicKey>,          //pederson commitments
-  pub keyimage_list: Vec<PublicKey>,          //key-images
+  pub keyimage_list: Vec<PublicKey>,          //keyimages
   pub pok_list: Vec<NummatusPoK>,             //proofs            
   g_basepoint: PublicKey,                     //g
   h_basepoint: PublicKey,                     //h
-  gj_basepoint: PublicKey,                    //g_j
 }
 
 impl Nummatus {
@@ -35,19 +33,16 @@ impl Nummatus {
     Nummatus {
       pubkey_list: vec![qzeropk; anon_list_size],
       commitment_list: vec![qzeropk; anon_list_size],
-      pederson_list: vec![zeropk; anon_list_size],
       keyimage_list: vec![zeropk; anon_list_size],
       pok_list: vec![empty_pok; anon_list_size],
       g_basepoint: zeropk,
       h_basepoint: zeropk,
-      gj_basepoint: zeropk,
     }
   }
 
   pub fn verify(&self) -> bool {
 
     assert!(self.commitment_list.len() == self.pubkey_list.len());
-    assert!(self.commitment_list.len() == self.pederson_list.len());
     assert!(self.commitment_list.len() == self.keyimage_list.len());
     assert!(self.commitment_list.len() == self.pok_list.len());
     assert!(self.commitment_list.len() != 0);
@@ -56,16 +51,13 @@ impl Nummatus {
       if NummatusPoK::verify_pok(
         self.pubkey_list[i],
         self.commitment_list[i],
-        self.pederson_list[i],
         self.keyimage_list[i],
-        self.gj_basepoint,
         self.h_basepoint,
         self.pok_list[i].clone(),
       ) == false {
         return false;
       }
     }
-
     true
   }
 }
@@ -75,7 +67,6 @@ pub struct NummatusExchange {
   nummatus_proof: Nummatus,
   own_keys: Vec<SecretKey>,           //k_i
   own_amounts: Vec<u64>,              //v_i
-  own_blinding: Vec<SecretKey>,       //w_i
   decoy_keys: Vec<SecretKey>,         //u_i
 }
 
@@ -86,7 +77,6 @@ impl NummatusExchange {
     let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
     let mut okeys = Vec::new();
     let mut amounts = vec![0u64; alist_size];
-    let mut oblind = vec![ZERO_KEY; alist_size];
     let mut dkeys = vec![ZERO_KEY; alist_size];
 
     let mut rng = thread_rng();
@@ -104,11 +94,8 @@ impl NummatusExchange {
 
     nproof.g_basepoint = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();
     nproof.h_basepoint = PublicKey::from_slice(&secp_inst, &GENERATOR_H).unwrap();
-    nproof.gj_basepoint = PublicKey::from_slice(&secp_inst, &GENERATOR_F).unwrap();
 
-    for i in 0..alist_size {
-
-      oblind[i] = SecretKey::new(&secp_inst, &mut rng);    
+    for i in 0..alist_size {   
 
       if okeys[i] != ZERO_KEY {
 
@@ -131,12 +118,9 @@ impl NummatusExchange {
         r2_d.mul_assign(&secp_inst, &r2).unwrap();
         nproof.commitment_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_d]).unwrap();
 
-        let mut w_h = nproof.h_basepoint.clone();                            //generating pederson commitment from amount and blinding factor
-        w_h.mul_assign(&secp_inst, &oblind[i].clone()).unwrap();
-        nproof.pederson_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &w_h]).unwrap();
-
-        nproof.keyimage_list[i] = nproof.gj_basepoint.clone();               //generating keyimage from secretkey
-        nproof.keyimage_list[i].mul_assign(&secp_inst, &okeys[i].clone()).unwrap();
+        let mut k_h = nproof.h_basepoint.clone();                            //generating keyimage commitment from amount and blinding factor
+        k_h.mul_assign(&secp_inst, &okeys[i].clone()).unwrap();
+        nproof.keyimage_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &k_h]).unwrap();
       } 
 
       else {
@@ -151,9 +135,7 @@ impl NummatusExchange {
         nproof.commitment_list[i].y = PublicKey::from_secret_key(&secp_inst, &temp_sk_cy).unwrap();
         
         dkeys[i] = SecretKey::new(&secp_inst, &mut rng);  
-        nproof.pederson_list[i] = nproof.h_basepoint.clone();                //generating pederson commitment from blinding factor                     
-        nproof.pederson_list[i].mul_assign(&secp_inst, &oblind[i]).unwrap();
-        nproof.keyimage_list[i] = nproof.gj_basepoint.clone();               //generating keyimage randomly                        
+        nproof.keyimage_list[i] = nproof.h_basepoint.clone();                //generating keyimage commitment from blinding factor                     
         nproof.keyimage_list[i].mul_assign(&secp_inst, &dkeys[i]).unwrap();
       }
     }
@@ -163,7 +145,6 @@ impl NummatusExchange {
       nummatus_proof: nproof,
       own_keys: okeys,
       own_amounts: amounts,
-      own_blinding: oblind,
       decoy_keys: dkeys,
     }
   }
@@ -175,27 +156,19 @@ impl NummatusExchange {
     for i in 0..self.anon_list_size {
       if self.own_keys[i] != ZERO_KEY {
 
-        let mut minus_blinding = self.own_blinding[i].clone();
-        minus_blinding.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
-
         self.nummatus_proof.pok_list[i] = NummatusPoK::create_pok_from_representation(
                                             self.nummatus_proof.pubkey_list[i],
                                             self.nummatus_proof.commitment_list[i],
-                                            self.nummatus_proof.pederson_list[i],
                                             self.nummatus_proof.keyimage_list[i],
                                             self.own_keys[i].clone(),
-                                            minus_blinding,
-                                            self.nummatus_proof.gj_basepoint,     //g_j
                                             self.nummatus_proof.h_basepoint,      //h
                                           );
       } else {
         self.nummatus_proof.pok_list[i] = NummatusPoK::create_pok_from_decoy(
                                             self.nummatus_proof.pubkey_list[i],
                                             self.nummatus_proof.commitment_list[i],
-                                            self.nummatus_proof.pederson_list[i],
                                             self.nummatus_proof.keyimage_list[i],
-                                            self.own_blinding[i].clone(),
-                                            self.nummatus_proof.gj_basepoint,     //g_j
+                                            self.decoy_keys[i].clone(),
                                             self.nummatus_proof.h_basepoint,      //h
                                           );
       } 
@@ -204,12 +177,10 @@ impl NummatusExchange {
     Nummatus {
       pubkey_list : self.nummatus_proof.pubkey_list.clone(),
       commitment_list : self.nummatus_proof.commitment_list.clone(),
-      pederson_list : self.nummatus_proof.pederson_list.clone(),
-      keyimage_list: self.nummatus_proof.keyimage_list.clone(),
+      keyimage_list : self.nummatus_proof.keyimage_list.clone(),
       pok_list: self.nummatus_proof.pok_list.clone(),
       g_basepoint: self.nummatus_proof.g_basepoint,
       h_basepoint: self.nummatus_proof.h_basepoint,
-      gj_basepoint: self.nummatus_proof.gj_basepoint,
     }
   } // end generate_proof
 
