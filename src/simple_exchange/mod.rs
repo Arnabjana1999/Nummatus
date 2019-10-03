@@ -1,16 +1,16 @@
-use digest::Digest;
-use sha2::Sha256;
+//use digest::Digest;
+//use sha2::Sha256;
 use rand::{thread_rng, Rng};
-use rand::seq::SliceRandom;
+//use rand::seq::SliceRandom;
 use secp256k1zkp as secp;
 use secp::Secp256k1;
-use secp::key::{SecretKey, PublicKey, ZERO_KEY};
+use secp::key::{SecretKey, PublicKey};//, ZERO_KEY};
 
 use crate::misc::QPublicKey;
-use crate::misc::MINUS_ONE_KEY;
+//use crate::misc::MINUS_ONE_KEY;
 use crate::misc::GENERATOR_G;
 use crate::misc::GENERATOR_H;
-use crate::misc::GENERATOR_F;
+//use crate::misc::GENERATOR_F;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
 use crate::misc::amount_to_key;
 
@@ -65,9 +65,9 @@ impl Simple {
 
 pub struct SimpleExchange {
   own_list_size: usize,
-  Simple_proof: Simple,
+  simple_proof: Simple,
   own_keys: Vec<SecretKey>,            //k_i
-  own_amounts: Vec<u64>,               //v_i
+  //own_amounts: Vec<u64>,               //v_i
 }
 
 impl SimpleExchange {
@@ -80,7 +80,7 @@ impl SimpleExchange {
 
     let mut rng = thread_rng();
 
-    for i in 0..olist_size {
+    for _i in 0..olist_size {
       okeys.push(SecretKey::new(&secp_inst, &mut rng));
     }
 
@@ -115,34 +115,34 @@ impl SimpleExchange {
 
     SimpleExchange  {
       own_list_size: olist_size,
-      Simple_proof: simproof,
+      simple_proof: simproof,
       own_keys: okeys,
-      own_amounts: amounts,
+      //own_amounts: amounts,
     }
   }
 
   pub fn generate_proof(&mut self) -> Simple {
 
-    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+    //let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit); 
 
     for i in 0..self.own_list_size {
 
-        self.Simple_proof.pok_list[i] = SimplePoK::create_pok_from_representation(
-                                            self.Simple_proof.pubkey_list[i],
-                                            self.Simple_proof.commitment_list[i],
-                                            self.Simple_proof.pederson_list[i],
+        self.simple_proof.pok_list[i] = SimplePoK::create_pok_from_representation(
+                                            self.simple_proof.pubkey_list[i],
+                                            self.simple_proof.commitment_list[i],
+                                            self.simple_proof.pederson_list[i],
                                             self.own_keys[i].clone(),
-                                            self.Simple_proof.h_basepoint,     
+                                            self.simple_proof.h_basepoint,     
                                           );
       } 
 
     Simple {
-      pubkey_list : self.Simple_proof.pubkey_list.clone(),
-      commitment_list : self.Simple_proof.commitment_list.clone(),
-      pederson_list : self.Simple_proof.pederson_list.clone(),
-      pok_list: self.Simple_proof.pok_list.clone(),
-      g_basepoint: self.Simple_proof.g_basepoint,
-      h_basepoint: self.Simple_proof.h_basepoint,
+      pubkey_list : self.simple_proof.pubkey_list.clone(),
+      commitment_list : self.simple_proof.commitment_list.clone(),
+      pederson_list : self.simple_proof.pederson_list.clone(),
+      pok_list: self.simple_proof.pok_list.clone(),
+      g_basepoint: self.simple_proof.g_basepoint,
+      h_basepoint: self.simple_proof.h_basepoint,
     }
   } // end generate_proof
 

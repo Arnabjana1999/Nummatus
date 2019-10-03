@@ -15,7 +15,7 @@ pub const MINUS_ONE_KEY: SecretKey = SecretKey([
     0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x40
 ]);
 
-pub const GENERATOR_G : [u8;65] = [                          //pub : public
+pub const GENERATOR_G : [u8;65] = [//pub : public
     0x04,
     0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac,
     0x55, 0xa0, 0x62, 0x95, 0xce, 0x87, 0x0b, 0x07,
@@ -24,7 +24,7 @@ pub const GENERATOR_G : [u8;65] = [                          //pub : public
     0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65,
     0x5d, 0xa4, 0xfb, 0xfc, 0x0e, 0x11, 0x08, 0xa8,
     0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19,
-    0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8
+    0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8 
 ];
 
 pub const GENERATOR_H : [u8;65] = [
@@ -39,13 +39,13 @@ pub const GENERATOR_H : [u8;65] = [
     0xc3, 0x0c, 0x23, 0x13, 0xf3, 0xa3, 0x89, 0x04
 ];
 
-pub const GENERATOR_F : [u8;33] = [
+/*pub const GENERATOR_F : [u8;33] = [
     0x02,
     0xb8, 0x60, 0xf5, 0x67, 0x95, 0xfc, 0x03, 0xf3,
     0xc2, 0x16, 0x85, 0x38, 0x3d, 0x1b, 0x5a, 0x2f,
     0x29, 0x54, 0xf4, 0x9b, 0x7e, 0x39, 0x8b, 0x8d,
     0x2a, 0x01, 0x93, 0x93, 0x36, 0x21, 0x15, 0x5f
-];
+];*/
 
 #[derive (Copy, Clone)]
 pub struct QPublicKey {
@@ -80,7 +80,7 @@ pub fn single_base_product (
     ) -> PublicKey {
 
     let mut exp_base = base.clone();
-    exp_base.mul_assign(&secp_inst, &exp);
+    exp_base.mul_assign(&secp_inst, &exp).unwrap();
     
     exp_base
 }
@@ -94,9 +94,9 @@ pub fn double_base_product (
     ) -> PublicKey {
 
     let mut exp1_base1 = base_1.clone();
-    exp1_base1.mul_assign(&secp_inst, &exp_1);
+    exp1_base1.mul_assign(&secp_inst, &exp_1).unwrap();
     let mut exp2_base2 = base_2.clone();
-    exp2_base2.mul_assign(&secp_inst, &exp_2);
+    exp2_base2.mul_assign(&secp_inst, &exp_2).unwrap();
 
     PublicKey::from_combination(&secp_inst, vec![&exp1_base1, &exp2_base2]).unwrap()
 }
@@ -112,11 +112,11 @@ pub fn triple_base_product (
     ) -> PublicKey {
 
     let mut exp1_base1 = base_1.clone();
-    exp1_base1.mul_assign(&secp_inst, &exp_1);
+    exp1_base1.mul_assign(&secp_inst, &exp_1).unwrap();
     let mut exp2_base2 = base_2.clone();
-    exp2_base2.mul_assign(&secp_inst, &exp_2);
+    exp2_base2.mul_assign(&secp_inst, &exp_2).unwrap();
     let mut exp3_base3 = base_3.clone();
-    exp3_base3.mul_assign(&secp_inst, &exp_3);
+    exp3_base3.mul_assign(&secp_inst, &exp_3).unwrap();
 
     PublicKey::from_combination(&secp_inst, vec![&exp1_base1, &exp2_base2, &exp3_base3]).unwrap()
 }
@@ -128,7 +128,7 @@ pub fn ratio (
     ) -> PublicKey {
 
     let mut minus_denominator = denominator.clone();
-    minus_denominator.mul_assign(&secp_inst, &MINUS_ONE_KEY);
+    minus_denominator.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
 
     PublicKey::from_combination(&secp_inst, vec![&numerator, &minus_denominator]).unwrap()
 }

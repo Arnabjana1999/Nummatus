@@ -1,5 +1,5 @@
-use digest::Digest;
-use sha2::Sha256;
+//use digest::Digest;
+//use sha2::Sha256;
 use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
 use secp256k1zkp as secp;
@@ -7,14 +7,14 @@ use secp::Secp256k1;
 use secp::key::{SecretKey, PublicKey, ZERO_KEY};
 
 use crate::misc::QPublicKey;
-use crate::misc::MINUS_ONE_KEY;
+//use crate::misc::MINUS_ONE_KEY;
 use crate::misc::GENERATOR_G;
 use crate::misc::GENERATOR_H;
-use crate::misc::GENERATOR_F;
+//use crate::misc::GENERATOR_F;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
 use crate::misc::amount_to_key;
 
-use crate::Nummatus_nizk::NummatusPoK;
+use crate::nummatus_nizk::NummatusPoK;
 
 pub struct Nummatus {
   pub pubkey_list: Vec<QPublicKey>,           //public-keys 
@@ -66,7 +66,7 @@ pub struct NummatusExchange {
   anon_list_size: usize,
   nummatus_proof: Nummatus,
   own_keys: Vec<SecretKey>,           //k_i
-  own_amounts: Vec<u64>,              //v_i
+  //own_amounts: Vec<u64>,              //v_i
   decoy_keys: Vec<SecretKey>,         //u_i
 }
 
@@ -144,14 +144,14 @@ impl NummatusExchange {
       anon_list_size: alist_size,
       nummatus_proof: nproof,
       own_keys: okeys,
-      own_amounts: amounts,
+      //own_amounts: amounts,
       decoy_keys: dkeys,
     }
   }
 
   pub fn generate_proof(&mut self) -> Nummatus {
 
-    let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
+    //let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
 
     for i in 0..self.anon_list_size {
       if self.own_keys[i] != ZERO_KEY {

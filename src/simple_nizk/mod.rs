@@ -1,15 +1,15 @@
-use digest::Digest;
-use sha2::Sha256;
+//use digest::Digest;
+//use sha2::Sha256;
 use rand::thread_rng;
 use secp256k1zkp as secp;
 use secp::Secp256k1;
 use secp::key::{SecretKey, PublicKey, ZERO_KEY};
 
 use crate::misc::QPublicKey;
-use crate::misc::amount_to_key;
+//use crate::misc::amount_to_key;
 use crate::misc::single_base_product;
 use crate::misc::double_base_product;
-use crate::misc::triple_base_product;
+//use crate::misc::triple_base_product;
 use crate::misc::ratio;
 use crate::misc::hash_simple_tx;
 use crate::misc::a_minus_bx;
@@ -98,7 +98,7 @@ impl SimplePoK {
 	    								v2.clone()
 	    								);
 
-	    let mut e = rpok.e.clone();
+	    let e = rpok.e.clone();
 
 	    e == hash_scalar    // comparing e from SimplePoK and evaluation of the scalar-hash
 	}

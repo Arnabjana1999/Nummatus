@@ -1,5 +1,5 @@
-use digest::Digest;
-use sha2::Sha256;
+//use digest::Digest;
+//use sha2::Sha256;
 use rand::thread_rng;
 use secp256k1zkp as secp;
 use secp::Secp256k1;
@@ -7,10 +7,10 @@ use secp::key::{SecretKey, PublicKey, ZERO_KEY};
 
 use crate::misc::QPublicKey;
 use crate::misc::MINUS_ONE_KEY;
-use crate::misc::amount_to_key;
+//use crate::misc::amount_to_key;
 use crate::misc::single_base_product;
 use crate::misc::double_base_product;
-use crate::misc::triple_base_product;
+//use crate::misc::triple_base_product;
 use crate::misc::ratio;
 use crate::misc::hash_special_tx;
 use crate::misc::a_minus_bx;
