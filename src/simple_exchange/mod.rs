@@ -1,28 +1,23 @@
-//use digest::Digest;
-//use sha2::Sha256;
 use rand::{thread_rng, Rng};
-//use rand::seq::SliceRandom;
 use secp256k1zkp as secp;
 use secp::Secp256k1;
-use secp::key::{SecretKey, PublicKey};//, ZERO_KEY};
+use secp::key::{SecretKey, PublicKey};
 
 use crate::misc::QPublicKey;
-//use crate::misc::MINUS_ONE_KEY;
 use crate::misc::GENERATOR_G;
 use crate::misc::GENERATOR_H;
-//use crate::misc::GENERATOR_F;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
 use crate::misc::amount_to_key;
 
 use crate::simple_nizk::SimplePoK;
 
 pub struct Simple {
-  pub pubkey_list: Vec<QPublicKey>,           //Public_keys 
-  pub commitment_list: Vec<QPublicKey>,       //Commitments
-  pub pederson_list: Vec<PublicKey>,          //pederson commitments
-  pub pok_list: Vec<SimplePoK>,               //proofs          
+  pub pubkey_list: Vec<QPublicKey>,           //Quisquis PublicKey
+  pub commitment_list: Vec<QPublicKey>,       //Quisquis commitment
+  pub pederson_list: Vec<PublicKey>,          //Pedersen commitment
+  pub pok_list: Vec<SimplePoK>,               //Simplus signatures          
   g_basepoint: PublicKey,                     //g
-  h_basepoint: PublicKey,                     //h
+  h_basepoint: PublicKey,                     //h which is computed at height j of Quisquis blockchain
 }
 
 impl Simple {
@@ -66,8 +61,7 @@ impl Simple {
 pub struct SimpleExchange {
   own_list_size: usize,
   simple_proof: Simple,
-  own_keys: Vec<SecretKey>,            //k_i
-  //own_amounts: Vec<u64>,               //v_i
+  own_keys: Vec<SecretKey>,
 }
 
 impl SimpleExchange {
@@ -94,13 +88,13 @@ impl SimpleExchange {
         let r1 = SecretKey::new(&secp_inst, &mut rng);
         let r2 = SecretKey::new(&secp_inst, &mut rng);
 
-        simproof.pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();   //generating publickey from secretkey
+        simproof.pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();   //generating PublicKey from SecretKey
         simproof.pubkey_list[i].x.mul_assign(&secp_inst, &r1).unwrap();
         simproof.pubkey_list[i].y = simproof.pubkey_list[i].x.clone();
         simproof.pubkey_list[i].y.mul_assign(&secp_inst, &okeys[i]).unwrap();
 
 
-        simproof.commitment_list[i].x = simproof.pubkey_list[i].x.clone();        //generating commitment from publickey and amount
+        simproof.commitment_list[i].x = simproof.pubkey_list[i].x.clone();        //generating commitment from PublicKey and amount
         simproof.commitment_list[i].x.mul_assign(&secp_inst, &r2).unwrap();
         let mut v_g = simproof.g_basepoint.clone();
         v_g.mul_assign(&secp_inst, &amount_to_key(&secp_inst, amounts[i])).unwrap();
@@ -108,7 +102,7 @@ impl SimpleExchange {
         r2_d.mul_assign(&secp_inst, &r2).unwrap();
         simproof.commitment_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_d]).unwrap();
 
-        let mut k_h = simproof.h_basepoint.clone();                              //generating pederson commitment from blinding factor
+        let mut k_h = simproof.h_basepoint.clone();                              //generating Pedersen commitment from blinding factor
         k_h.mul_assign(&secp_inst, &okeys[i].clone()).unwrap();
         simproof.pederson_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &k_h]).unwrap();
     }
@@ -117,13 +111,10 @@ impl SimpleExchange {
       own_list_size: olist_size,
       simple_proof: simproof,
       own_keys: okeys,
-      //own_amounts: amounts,
     }
   }
 
   pub fn generate_proof(&mut self) -> Simple {
-
-    //let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit); 
 
     for i in 0..self.own_list_size {
 
@@ -146,4 +137,4 @@ impl SimpleExchange {
     }
   } // end generate_proof
 
-} // end SimpleExchange implementation 
+} // end Simplus implementation 

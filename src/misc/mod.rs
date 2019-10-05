@@ -15,7 +15,7 @@ pub const MINUS_ONE_KEY: SecretKey = SecretKey([
     0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x40
 ]);
 
-pub const GENERATOR_G : [u8;65] = [//pub : public
+pub const GENERATOR_G : [u8;65] = [
     0x04,
     0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac,
     0x55, 0xa0, 0x62, 0x95, 0xce, 0x87, 0x0b, 0x07,
@@ -39,16 +39,9 @@ pub const GENERATOR_H : [u8;65] = [
     0xc3, 0x0c, 0x23, 0x13, 0xf3, 0xa3, 0x89, 0x04
 ];
 
-/*pub const GENERATOR_F : [u8;33] = [
-    0x02,
-    0xb8, 0x60, 0xf5, 0x67, 0x95, 0xfc, 0x03, 0xf3,
-    0xc2, 0x16, 0x85, 0x38, 0x3d, 0x1b, 0x5a, 0x2f,
-    0x29, 0x54, 0xf4, 0x9b, 0x7e, 0x39, 0x8b, 0x8d,
-    0x2a, 0x01, 0x93, 0x93, 0x36, 0x21, 0x15, 0x5f
-];*/
-
 #[derive (Copy, Clone)]
-pub struct QPublicKey {
+//pair of secp public keys which constitute a PublicKey and an ElGamal commitment in Quisquis
+pub struct QPublicKey {      
     pub x : PublicKey,
     pub y : PublicKey,
 }
@@ -73,6 +66,7 @@ pub fn amount_to_key (secp_inst: &Secp256k1, amount: u64) -> SecretKey {
     amount_scalar
 }
 
+//takes base and exp as arguments and returns base^exp
 pub fn single_base_product (
     secp_inst: &Secp256k1, 
     base: PublicKey, 
@@ -85,6 +79,7 @@ pub fn single_base_product (
     exp_base
 }
 
+//takes base1, base2, exp1, and exp2 as arguments and returns base1^exp1*base2^exp2
 pub fn double_base_product (
     secp_inst: &Secp256k1, 
     base_1: PublicKey, 
@@ -101,6 +96,7 @@ pub fn double_base_product (
     PublicKey::from_combination(&secp_inst, vec![&exp1_base1, &exp2_base2]).unwrap()
 }
 
+//takes base1, base2, base3, exp1, exp2, and exp3 as arguments and returns base1^exp1 * base2^exp2 * base3^exp3
 pub fn triple_base_product (
     secp_inst: &Secp256k1, 
     base_1: PublicKey, 
@@ -121,18 +117,20 @@ pub fn triple_base_product (
     PublicKey::from_combination(&secp_inst, vec![&exp1_base1, &exp2_base2, &exp3_base3]).unwrap()
 }
 
+//takes num and den as arguments and returns num * den^-1
 pub fn ratio (
     secp_inst: &Secp256k1, 
-    numerator: PublicKey, 
-    denominator: PublicKey,
+    num: PublicKey, 
+    den: PublicKey,
     ) -> PublicKey {
 
-    let mut minus_denominator = denominator.clone();
-    minus_denominator.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
+    let mut minus_den = den.clone();
+    minus_den.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();
 
-    PublicKey::from_combination(&secp_inst, vec![&numerator, &minus_denominator]).unwrap()
+    PublicKey::from_combination(&secp_inst, vec![&num, &minus_den]).unwrap()
 }
 
+//computes hash of arguments for Simplus signature and returns a scalar
 pub fn hash_simple_tx (
     secp_inst: &Secp256k1,
     a1: PublicKey, a2: PublicKey, a3: PublicKey, a4: PublicKey, a5: PublicKey,
@@ -152,6 +150,7 @@ pub fn hash_simple_tx (
     SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap()
 }
 
+//computes hash of arguments for Nummatus signature and returns a scalar
 pub fn hash_special_tx (
     secp_inst: &Secp256k1,
     a1: PublicKey, a2: PublicKey, a3: PublicKey, a4: PublicKey, a5: PublicKey,
@@ -172,6 +171,7 @@ pub fn hash_special_tx (
     SecretKey::from_slice(&secp_inst, &hasher.result()).unwrap()
 }
 
+//takes 3 Secretkeys a,b,x as arguments and returns a-b*x
 pub fn a_minus_bx (secp_inst: &Secp256k1, a: SecretKey, b: SecretKey, x: SecretKey) -> SecretKey {
     let mut result = x;                                        // result = x
     result.mul_assign(&secp_inst, &MINUS_ONE_KEY).unwrap();    // result = -x

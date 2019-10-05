@@ -1,5 +1,3 @@
-//use digest::Digest;
-//use sha2::Sha256;
 use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
 use secp256k1zkp as secp;
@@ -7,22 +5,20 @@ use secp::Secp256k1;
 use secp::key::{SecretKey, PublicKey, ZERO_KEY};
 
 use crate::misc::QPublicKey;
-//use crate::misc::MINUS_ONE_KEY;
 use crate::misc::GENERATOR_G;
 use crate::misc::GENERATOR_H;
-//use crate::misc::GENERATOR_F;
 use crate::misc::MAX_AMOUNT_PER_OUTPUT;
 use crate::misc::amount_to_key;
 
 use crate::nummatus_nizk::NummatusPoK;
 
 pub struct Nummatus {
-  pub pubkey_list: Vec<QPublicKey>,           //public-keys 
-  pub commitment_list: Vec<QPublicKey>,       //Commitments
-  pub keyimage_list: Vec<PublicKey>,          //keyimages
-  pub pok_list: Vec<NummatusPoK>,             //proofs            
+  pub pubkey_list: Vec<QPublicKey>,           //Publickey for Quisquis 
+  pub commitment_list: Vec<QPublicKey>,       //Quisquis commitment
+  pub pedersen_com_list: Vec<PublicKey>,          //Pedersen commitment
+  pub pok_list: Vec<NummatusPoK>,             //Nummatus signatures            
   g_basepoint: PublicKey,                     //g
-  h_basepoint: PublicKey,                     //h
+  h_basepoint: PublicKey,                     //h which is computed at height j of Quisquis blockchain
 }
 
 impl Nummatus {
@@ -33,7 +29,7 @@ impl Nummatus {
     Nummatus {
       pubkey_list: vec![qzeropk; anon_list_size],
       commitment_list: vec![qzeropk; anon_list_size],
-      keyimage_list: vec![zeropk; anon_list_size],
+      pedersen_com_list: vec![zeropk; anon_list_size],
       pok_list: vec![empty_pok; anon_list_size],
       g_basepoint: zeropk,
       h_basepoint: zeropk,
@@ -43,7 +39,7 @@ impl Nummatus {
   pub fn verify(&self) -> bool {
 
     assert!(self.commitment_list.len() == self.pubkey_list.len());
-    assert!(self.commitment_list.len() == self.keyimage_list.len());
+    assert!(self.commitment_list.len() == self.pedersen_com_list.len());
     assert!(self.commitment_list.len() == self.pok_list.len());
     assert!(self.commitment_list.len() != 0);
 
@@ -51,7 +47,7 @@ impl Nummatus {
       if NummatusPoK::verify_pok(
         self.pubkey_list[i],
         self.commitment_list[i],
-        self.keyimage_list[i],
+        self.pedersen_com_list[i],
         self.h_basepoint,
         self.pok_list[i].clone(),
       ) == false {
@@ -65,9 +61,8 @@ impl Nummatus {
 pub struct NummatusExchange {
   anon_list_size: usize,
   nummatus_proof: Nummatus,
-  own_keys: Vec<SecretKey>,           //k_i
-  //own_amounts: Vec<u64>,              //v_i
-  decoy_keys: Vec<SecretKey>,         //u_i
+  own_keys: Vec<SecretKey>,           
+  decoy_keys: Vec<SecretKey>,         
 }
 
 impl NummatusExchange {
@@ -104,13 +99,13 @@ impl NummatusExchange {
         let r1 = SecretKey::new(&secp_inst, &mut rng);
         let r2 = SecretKey::new(&secp_inst, &mut rng);
 
-        nproof.pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();   //generating publickey from secretkey
+        nproof.pubkey_list[i].x = PublicKey::from_slice(&secp_inst, &GENERATOR_G).unwrap();   //generating PublicKey from SecretKey
         nproof.pubkey_list[i].x.mul_assign(&secp_inst, &r1).unwrap();
         nproof.pubkey_list[i].y = nproof.pubkey_list[i].x.clone();
         nproof.pubkey_list[i].y.mul_assign(&secp_inst, &okeys[i]).unwrap();
 
 
-        nproof.commitment_list[i].x = nproof.pubkey_list[i].x.clone();       //generating commitment from publickey and amount
+        nproof.commitment_list[i].x = nproof.pubkey_list[i].x.clone();       //generating commitment from PublicKey and amount
         nproof.commitment_list[i].x.mul_assign(&secp_inst, &r2).unwrap();
         let mut v_g = nproof.g_basepoint.clone();
         v_g.mul_assign(&secp_inst, &amount_to_key(&secp_inst, amounts[i])).unwrap();
@@ -118,9 +113,9 @@ impl NummatusExchange {
         r2_d.mul_assign(&secp_inst, &r2).unwrap();
         nproof.commitment_list[i].y = PublicKey::from_combination(&secp_inst, vec![&v_g, &r2_d]).unwrap();
 
-        let mut k_h = nproof.h_basepoint.clone();                            //generating keyimage commitment from amount and blinding factor
+        let mut k_h = nproof.h_basepoint.clone();                            //generating Pedersen commitment from amount and blinding factor
         k_h.mul_assign(&secp_inst, &okeys[i].clone()).unwrap();
-        nproof.keyimage_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &k_h]).unwrap();
+        nproof.pedersen_com_list[i] = PublicKey::from_combination(&secp_inst, vec![&v_g, &k_h]).unwrap();
       } 
 
       else {
@@ -129,14 +124,14 @@ impl NummatusExchange {
         let temp_sk_cx = SecretKey::new(&secp_inst, &mut rng);
         let temp_sk_cy = SecretKey::new(&secp_inst, &mut rng);
 
-        nproof.pubkey_list[i].x = PublicKey::from_secret_key(&secp_inst, &temp_sk_px).unwrap();      //generating publickey randomly
+        nproof.pubkey_list[i].x = PublicKey::from_secret_key(&secp_inst, &temp_sk_px).unwrap();      //generating PublicKey randomly
         nproof.pubkey_list[i].y = PublicKey::from_secret_key(&secp_inst, &temp_sk_py).unwrap();
         nproof.commitment_list[i].x = PublicKey::from_secret_key(&secp_inst, &temp_sk_cx).unwrap();  //generating commitment randomly
         nproof.commitment_list[i].y = PublicKey::from_secret_key(&secp_inst, &temp_sk_cy).unwrap();
         
         dkeys[i] = SecretKey::new(&secp_inst, &mut rng);  
-        nproof.keyimage_list[i] = nproof.h_basepoint.clone();                //generating keyimage commitment from blinding factor                     
-        nproof.keyimage_list[i].mul_assign(&secp_inst, &dkeys[i]).unwrap();
+        nproof.pedersen_com_list[i] = nproof.h_basepoint.clone();                //generating Pedersen commitment from blinding factor                     
+        nproof.pedersen_com_list[i].mul_assign(&secp_inst, &dkeys[i]).unwrap();
       }
     }
 
@@ -144,14 +139,11 @@ impl NummatusExchange {
       anon_list_size: alist_size,
       nummatus_proof: nproof,
       own_keys: okeys,
-      //own_amounts: amounts,
       decoy_keys: dkeys,
     }
   }
 
   pub fn generate_proof(&mut self) -> Nummatus {
-
-    //let secp_inst = Secp256k1::with_caps(secp::ContextFlag::Commit);
 
     for i in 0..self.anon_list_size {
       if self.own_keys[i] != ZERO_KEY {
@@ -159,17 +151,17 @@ impl NummatusExchange {
         self.nummatus_proof.pok_list[i] = NummatusPoK::create_pok_from_representation(
                                             self.nummatus_proof.pubkey_list[i],
                                             self.nummatus_proof.commitment_list[i],
-                                            self.nummatus_proof.keyimage_list[i],
+                                            self.nummatus_proof.pedersen_com_list[i],
                                             self.own_keys[i].clone(),
-                                            self.nummatus_proof.h_basepoint,      //h
+                                            self.nummatus_proof.h_basepoint,      
                                           );
       } else {
         self.nummatus_proof.pok_list[i] = NummatusPoK::create_pok_from_decoy(
                                             self.nummatus_proof.pubkey_list[i],
                                             self.nummatus_proof.commitment_list[i],
-                                            self.nummatus_proof.keyimage_list[i],
+                                            self.nummatus_proof.pedersen_com_list[i],
                                             self.decoy_keys[i].clone(),
-                                            self.nummatus_proof.h_basepoint,      //h
+                                            self.nummatus_proof.h_basepoint,     
                                           );
       } 
     } 
@@ -177,7 +169,7 @@ impl NummatusExchange {
     Nummatus {
       pubkey_list : self.nummatus_proof.pubkey_list.clone(),
       commitment_list : self.nummatus_proof.commitment_list.clone(),
-      keyimage_list : self.nummatus_proof.keyimage_list.clone(),
+      pedersen_com_list : self.nummatus_proof.pedersen_com_list.clone(),
       pok_list: self.nummatus_proof.pok_list.clone(),
       g_basepoint: self.nummatus_proof.g_basepoint,
       h_basepoint: self.nummatus_proof.h_basepoint,
